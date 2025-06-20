@@ -3,6 +3,7 @@
 #include <iostream>
 #include <chrono>
 #include <filesystem>
+#include <Windows.h>
 
 // 读取图像并转换为灰度字节数组
 std::vector<unsigned char> LoadImageAsGrayBytes(const std::string& image_path, int& width, int& height) {
@@ -49,8 +50,8 @@ std::vector<unsigned char> LoadImageAsGrayBytes(const std::string& image_path, i
     std::cout << "转换为灰度字节数组，大小: " << gray_bytes.size() << " bytes" << std::endl;
     
     // 可选：保存预处理后的灰度图像以便调试
-    cv::imwrite("debug_gray.jpg", gray_image);
-    std::cout << "调试用灰度图像已保存为: debug_gray.jpg" << std::endl;
+    // cv::imwrite("debug_gray.jpg", gray_image);
+    // std::cout << "调试用灰度图像已保存为: debug_gray.jpg" << std::endl;
     
     return gray_bytes;
 }
@@ -82,15 +83,19 @@ bool CheckModelFiles(const std::string& base_dir) {
 }
 
 int main() {
-    std::cout << "=== PaddleOCR 银行卡识别测试 ===" << std::endl;
+    // 设置控制台 UTF-8 编码
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+
+    std::cout << "=== PaddleOCR识别测试 ===" << std::endl;
     std::cout << "===================================" << std::endl;
     
     try {
         // 1. 检查图像文件
-        std::string image_path = "images/card-jd.jpg";
+        std::string image_path = "E:\\LTS\\rpa-windows-ocr\\images\\card-jd.jpg";
         
         // 2. 检查模型文件
-        std::string models_dir = "models";
+        std::string models_dir = "E:\\LTS\\rpa-windows-ocr\\models";
         if (!CheckModelFiles(models_dir)) {
             std::cerr << "Wrong 模型文件检查失败，请确保模型文件已正确放置" << std::endl;
             return 1;
