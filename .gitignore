@@ -1,32 +1,297 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+###################
+# 编译输出文件
+###################
+
+# 可执行文件
 *.exe
-*.exe~
+*.out
+*.app
+
+# 目标文件
+*.o
+*.obj
+
+# 库文件
+*.lib
+*.a
+*.la
+*.lo
 *.dll
 *.so
+*.so.*
 *.dylib
 
-# Test binary, built with `go test -c`
-*.test
+# 静态库
+*.lai
+*.la
+*.a
+*.lib
 
-# Code coverage profiles and other test artifacts
+# 共享库
+*.dll
+*.so
+*.so.*
+*.dylib
+
+###################
+# 编译器生成文件
+###################
+
+# Visual Studio
+*.sln
+*.suo
+*.vcxproj*
+*.sdf
+*.opensdf
+*.db
+*.ipch
+*.aps
+*.ncb
+*.opendb
+*.cachefile
+*.VC.VC.opendb
+*.VC.db
+*.pdb
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# Visual Studio 目录
+Debug/
+Release/
+x64/
+x86/
+.vs/
+*.VC.opendb
+*.VC.db
+
+# MinGW
+*.a
+*.dll
+*.exe
+
+# GCC
+*.d
+
+###################
+# IDE 配置文件
+###################
+
+# Visual Studio Code
+# .vscode/settings.json
+# .vscode/c_cpp_properties.json
+# 保留 tasks.json 和 launch.json（可选）
+# .vscode/tasks.json
+# .vscode/launch.json
+
+# CLion
+.idea/
+cmake-build-*/
+
+# Qt Creator
+CMakeLists.txt.user
+CMakeLists.txt.user.*
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+*.moc.cpp
+*.qm
+*.prl
+
+# Code::Blocks
+*.depend
+*.layout
+*.cbp
+
+###################
+# 构建系统
+###################
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+# Make
+*.make
+Makefile*
+
+# Autotools
+/config.log
+/config.status
+/config.cache
+/autom4te.cache/
+/aclocal.m4
+/compile
+/configure
+/depcomp
+/install-sh
+/missing
+/stamp-h1
+/.deps/
+/.libs/
+
+# Ninja
+.ninja_deps
+.ninja_log
+build.ninja
+
+###################
+# 包管理器
+###################
+
+# vcpkg
+vcpkg_installed/
+.vcpkg-root
+
+# Conan
+conanbuildinfo.*
+conaninfo.txt
+conandata.yml
+graph_info.json
+
+###################
+# 调试和分析工具
+###################
+
+# GDB
+gdb.txt
+
+# Valgrind
+*.sup
+
+# AddressSanitizer
+*.asan
+
+# Intel VTune
+*.amplxe
+
+# Perf
+perf.data*
+
+###################
+# 临时文件
+###################
+
+# 系统生成
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# 编辑器临时文件
+*~
+*.swp
+*.swo
+*tmp*
+*.temp
+
+# Vim
+*.un~
+Session.vim
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+###################
+# 日志和输出
+###################
+
+*.log
 *.out
-coverage.*
-*.coverprofile
-profile.cov
+*.err
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+###################
+# 测试覆盖率
+###################
 
-# Go workspace file
-go.work
-go.work.sum
+# gcov
+*.gcno
+*.gcda
+*.gcov
 
-# env file
-.env
+# lcov
+*.info
+coverage/
 
-# Editor/IDE
-# .idea/
-# .vscode/
+###################
+# 文档生成
+###################
+
+# Doxygen
+docs/html/
+docs/latex/
+docs/man/
+docs/rtf/
+
+###################
+# 项目特定
+###################
+
+# 模型文件（通常很大）
+*.onnx
+*.pb
+*.tflite
+*.caffemodel
+*.weights
+
+# 数据文件
+data/
+datasets/
+*.csv
+*.json
+*.xml
+
+# 配置文件（如果包含敏感信息）
+# config.ini
+# settings.json
+
+# 第三方库（如果不使用包管理器）
+# third_party/
+# libs/
+# dependencies/
+
+# 构建输出目录
+build/
+bin/
+dist/
+out/
+
+# 测试输出
+test_results/
