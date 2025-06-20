@@ -26,5 +26,5 @@
 ## Paddle_Inference
 1. 从[官网](https://www.paddlepaddle.org.cn/inference/master/guides/install/download_lib.html#windows)下载Windows版预编译包
 2. 将 paddle/include/* 复制到项目的 include/paddle_inference 目录下
-3. 根据 lib/msvc/README.md 复制 lib
-4. 根据 bin/msvc/README.md 复制 dll
+3. 根据 [lib/msvc/README.md](./lib/msvc/README.md) 复制 lib
+4. 根据 [bin/msvc/README.md](./bin/msvc/README.md) 复制 dll
