@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug test_paddle_ocr",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/test_paddle_ocr.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "${workspaceFolder}/bin/msvc;${env:PATH}"
+        }
+      ],
+      "console": "integratedTerminal",  
+      "preLaunchTask": "build-debug"  // 调试前先构建
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "configurations": [
+    {
+      "name": "Win32",
+      "includePath": [
+        "${workspaceFolder}/include",        
+        "${MSVC_INCLUDE}",
+        "${VCPKG_STATIC}/include/opencv4"
+      ],
+      "compilerPath": "cl.exe",  // 指定编译器路径
+      "intelliSenseMode": "windows-msvc-x64"
+    }
+  ],
+  "version": 4
+}

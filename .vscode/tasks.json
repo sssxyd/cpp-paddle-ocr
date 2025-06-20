@@ -1,0 +1,104 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-debug",  // 改为 release
+      "type": "shell",
+      "command": "cl.exe",
+      "args": [
+        "/std:c++20",
+        "/utf-8",
+        "/EHsc",
+        "/TP",
+        "/MT",               // 改为 Release 静态运行时库
+        "/W3",
+        "/O2",               // Release 优化
+        "/Zi",              // 调试信息
+        "/DNDEBUG",          // Release 宏定义
+        "/DWIN32",
+        "/D_WINDOWS",
+        "/D_CRT_SECURE_NO_WARNINGS",
+        
+        "test_paddle_ocr.cpp",
+        "paddle_ocr.cpp",
+        
+        // 头文件路径
+        "/I", "${workspaceFolder}/include",
+        "/I", "${env:MSVC_INCLUDE}",
+        "/I", "${env:WIN_SDK_INCLUDE}/ucrt",
+        "/I", "${env:WIN_SDK_INCLUDE}/shared",
+        "/I", "${env:WIN_SDK_INCLUDE}/um",
+        "/I", "${env:VCPKG_STATIC}/include",
+        "/I", "${env:VCPKG_STATIC}/include/opencv4",
+        
+        "/link",
+        "/DEBUG",            // 生成调试信息
+        // 排除 Debug 运行时库
+        "/NODEFAULTLIB:msvcprtd.lib",
+        "/NODEFAULTLIB:msvcrtd.lib",
+        "/NODEFAULTLIB:libcmtd.lib",
+        
+        // 库文件路径（使用 Release 路径）
+        "/LIBPATH:${env:MSVC_LIB}",
+        "/LIBPATH:${env:WIN_SDK_LIB}/ucrt/x64",
+        "/LIBPATH:${env:WIN_SDK_LIB}/um/x64",
+        "/LIBPATH:${env:VCPKG_STATIC}/lib",  
+        "/LIBPATH:${workspaceFolder}/lib/msvc",
+        
+        // 主要库
+        "paddle_inference.lib",
+        
+        // OpenCV 库（Release 版本，去掉 'd' 后缀）
+        "opencv_highgui4.lib",
+        "opencv_imgcodecs4.lib",
+        "opencv_imgproc4.lib",
+        "opencv_core4.lib",
+        
+        // 日志库（Release 版本）
+        "glog.lib",
+        "gflags_static.lib",
+        
+        // 图像格式库（Release 版本）
+        "libwebp.lib",
+        "libwebpdemux.lib",
+        "libwebpmux.lib",
+        "libwebpdecoder.lib",
+        "libsharpyuv.lib",
+        
+        // 压缩库（Release 版本）
+        "zlib.lib",
+        "libpng16.lib",
+        "tiff.lib",
+        "lzma.lib",
+        "turbojpeg.lib",       // 或 jpeg.lib
+        
+        // Windows 系统库
+        "kernel32.lib",
+        "user32.lib",
+        "gdi32.lib",
+        "advapi32.lib",
+        "shell32.lib",
+        "ole32.lib",
+        "oleaut32.lib",
+        "uuid.lib",
+        "comdlg32.lib",
+        
+        "/Fe:${workspaceFolder}/test_paddle_ocr.exe"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": ["$msCompile"]
+    }
+  ]
+}

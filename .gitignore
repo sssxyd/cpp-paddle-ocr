@@ -98,11 +98,6 @@ x86/
 ###################
 
 # Visual Studio Code
-# .vscode/settings.json
-# .vscode/c_cpp_properties.json
-# 保留 tasks.json 和 launch.json（可选）
-# .vscode/tasks.json
-# .vscode/launch.json
 
 # CLion
 .idea/
@@ -275,7 +270,6 @@ docs/rtf/
 data/
 datasets/
 *.csv
-*.json
 *.xml
 
 # 配置文件（如果包含敏感信息）

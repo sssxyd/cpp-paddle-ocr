@@ -1,39 +1,29 @@
 # rpa-windows-ocr
 
-## cgo环境
-1. windows上安装：[mysys2](https://www.msys2.org/), 安装目录：D:\Applications\msys64
-2. mysys2 shell 安装ucrt64：`pacman -S mingw-w64-ucrt-x86_64-gcc`
-3. ucrt64 shell 执行：`pacman -Syu`
-4. 将 `D:\Applications\msys64\ucrt64\bin` 路径设置到windows的Path
-5. 工具链：`pacman -S mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-git`
-6. 配置proxy
-    ```shell
-    git config --global https.proxy http://127.0.0.1:1080
-    export https_proxy="http://127.0.0.1:1080"
-    ```
+## MSVC环境
+1. 安装 Visual Studio Community 2022
+2. 安装 Windows SDK Kit 10.0.26100.0
+3. 安装 NASM、CMake
+4. 将 cl.exe/nasm.exe 所在目录加入PATH
+5. 设置环境变量
+   - MSVC_INCLUDE: `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include`
+   - MSVC_LIB: `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\lib\x64`
+   - MSVC_BIN: `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64`
+   - WIN_SDK_INCLUDE: `C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0`
+   - WIN_SDK_LIB: `C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0`
 
+## VCPKG环境
+1. 下载安装vcpkg
+2. 安装静态链接库(admin启动powershell并设置代理)
+   - protobuf:x64-windows-static
+   - opencv:x64-windows-static
+   - glog:x64-windows-static
+   - gflags:x64-windows-static
+3. 设置环境变量
+   - VCPKG_STATIC: `E:\vcpkg\installed\x64-windows-static`
 
-
-## paddle inference 导出
-1. 安装swig, `pacman -S mingw-w64-ucrt-x86_64-swig`
-2. 下载 [paddle inference 3.0.0 预编译包](https://www.paddlepaddle.org.cn/inference/master/guides/install/download_lib.html#windows)
-3. 解压到工程目录下的 paddle_inference
-4. third_pary下，只保留：mklml/onednn/protobuf/utf8proc
-5. 解决protobuf版本问题
-   ```shell
-    # pacman -S mingw-w64-ucrt-x86_64-abseil-cpp
-    # pacman -S mingw-w64-ucrt-x86_64-gtest 
-    pacman -S mingw-w64-ucrt-x86_64-protobuf
-   ```
-6. 安装工具、执行脚本，将msvc编译的动态/静态链接库转为mingw的动态/静态链接库
-   ```shell
-   pacman -S mingw-w64-ucrt-x86_64-tools-git
-   pacman -S mingw-w64-ucrt-x86_64-binutils
-   sh convert_to_mingw_libs.sh
-   ```
-7. 配置c++标准为 c++20
-8. copy paddle_inference/paddle/include --> /ucret64/include/paddle_inference
-9. copy paddle_inference/paddle/lib/*.a  paddle_inference/third_party/*/*.a --> /ucret64/lib
-10. copy paddle_inference/paddle/lib/*.dll  paddle_inference/third_party/*/*.dll --> /ucret64/bin
-   
-   
+## Paddle_Inference
+1. 从[官网](https://www.paddlepaddle.org.cn/inference/master/guides/install/download_lib.html#windows)下载Windows版预编译包
+2. 将 paddle/include/* 复制到项目的 include/paddle_inference 目录下
+3. 根据 lib/msvc/README.md 复制 lib
+4. 根据 bin/msvc/README.md 复制 dll
