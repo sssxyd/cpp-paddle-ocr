@@ -5,6 +5,7 @@
       "includePath": [
         "${workspaceFolder}/include",        
         "${MSVC_INCLUDE}",
+        "${VCPKG_STATIC}/include",
         "${VCPKG_STATIC}/include/opencv4"
       ],
       "compilerPath": "cl.exe",  // 指定编译器路径

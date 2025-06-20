@@ -246,10 +246,43 @@ std::vector<std::vector<int>> OcrEngine::detect_text(cv::Mat& image, int w, int 
         std::vector<float> output_data(output_size);
         output_t->CopyToCpu(output_data.data());
         
-        // 后处理 - 简化版本，返回整个图像作为一个文本区域
-        // 在实际应用中，这里需要实现DBNet等后处理算法
         if (!output_data.empty()) {
-            text_boxes.push_back({0, 0, w, h});
+            // 创建概率图
+            cv::Mat prob_map(target_size, target_size, CV_32F, output_data.data());
+            
+            // 应用阈值
+            cv::Mat binary;
+            cv::threshold(prob_map, binary, 0.3, 255, cv::THRESH_BINARY);
+            binary.convertTo(binary, CV_8U);
+            
+            // 查找连通区域
+            cv::Mat labels, stats, centroids;
+            int num_labels = cv::connectedComponentsWithStats(binary, labels, stats, centroids);
+            
+            for (int i = 1; i < num_labels; i++) {  // 跳过背景标签0
+                int x = stats.at<int>(i, cv::CC_STAT_LEFT);
+                int y = stats.at<int>(i, cv::CC_STAT_TOP);
+                int width = stats.at<int>(i, cv::CC_STAT_WIDTH);
+                int height = stats.at<int>(i, cv::CC_STAT_HEIGHT);
+                int area = stats.at<int>(i, cv::CC_STAT_AREA);
+                
+                // 过滤小区域
+                if (area > 100 && width > 5 && height > 5) {
+                    // 映射回原图坐标
+                    int x1 = static_cast<int>(x * w / static_cast<float>(target_size));
+                    int y1 = static_cast<int>(y * h / static_cast<float>(target_size));
+                    int x2 = static_cast<int>((x + width) * w / static_cast<float>(target_size));
+                    int y2 = static_cast<int>((y + height) * h / static_cast<float>(target_size));
+                    
+                    // 边界检查
+                    x1 = std::max(0, std::min(x1, w - 1));
+                    y1 = std::max(0, std::min(y1, h - 1));
+                    x2 = std::max(0, std::min(x2, w - 1));
+                    y2 = std::max(0, std::min(y2, h - 1));
+                    
+                    text_boxes.push_back({x1, y1, x2, y2});
+                }
+            }
         }
         
     } catch (const std::exception& e) {

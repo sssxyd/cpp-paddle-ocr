@@ -101,7 +101,8 @@
         "stacktrace": "cpp",
         "stdfloat": "cpp",
         "syncstream": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "xutility": "cpp"
     },
     "C_Cpp.default.compilerPath": "cl.exe",
 }
