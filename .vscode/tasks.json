@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build-debug",  // 改为 release
+      "label": "build",  // 改为 release
       "type": "shell",
       "command": "cl.exe",
       "args": [
@@ -15,24 +15,41 @@
         "/O2",               // Release 优化
         "/Zi",              // 调试信息
         "/DNDEBUG",          // Release 宏定义
-        "/DWIN32",
-        "/D_WINDOWS",
-        "/D_CRT_SECURE_NO_WARNINGS",
-        
-        "test_paddle_ocr.cpp",
-        "paddle_ocr.cpp",
-        
+        "/DWIN32",          // 定义 Windows 平台
+        "/D_WINDOWS",                 // Windows 平台
+        "/D_CRT_SECURE_NO_WARNINGS",  // 禁用安全警告
+          // 编译 src 目录下的所有源文件（main.cpp放在第一位）
+        "src/main.cpp",
+        "src/args.cpp",
+        "src/clipper.cpp", 
+        "src/ocr_cls.cpp",
+        "src/ocr_det.cpp",
+        "src/ocr_rec.cpp",
+        "src/paddleocr.cpp",
+        "src/paddlestructure.cpp",
+        "src/postprocess_op.cpp",
+        "src/preprocess_op.cpp",
+        "src/structure_layout.cpp",
+        "src/structure_table.cpp",
+        "src/utility.cpp",
+
         // 头文件路径
         "/I", "${workspaceFolder}/include",
         "/I", "${env:MSVC_INCLUDE}",
         "/I", "${env:WIN_SDK_INCLUDE}/ucrt",
         "/I", "${env:WIN_SDK_INCLUDE}/shared",
-        "/I", "${env:WIN_SDK_INCLUDE}/um",
-        "/I", "${env:VCPKG_STATIC}/include",
-        "/I", "${env:VCPKG_STATIC}/include/opencv4",
+        "/I", "${env:WIN_SDK_INCLUDE}/um",        
+        "/I", "${env:VCPKG_STATIC}/include",       
+        "/I", "${env:VCPKG_STATIC}/include/opencv4",      
+
+        "/Fe:${workspaceFolder}\\build\\ocr.exe",   // 指定输出文件名
+        "/Fo:${workspaceFolder}\\build\\",          // 指定对象文件输出目录
+        "/Fd:${workspaceFolder}\\build\\vc.pdb",    // 指定编译器PDB文件
         
         "/link",
         "/DEBUG",            // 生成调试信息
+        "/PDB:${workspaceFolder}\\build\\ocr.pdb",  // 指定链接器PDB文件位置
+        "/ILK:${workspaceFolder}\\build\\ocr.ilk",  // 指定增量链接文件位置
         // 排除 Debug 运行时库
         "/NODEFAULTLIB:msvcprtd.lib",
         "/NODEFAULTLIB:msvcrtd.lib",
@@ -57,6 +74,8 @@
         // 日志库（Release 版本）
         "glog.lib",
         "gflags_static.lib",
+
+        "yaml-cpp.lib",  // 或 yaml-cpp-static.lib
         
         // 图像格式库（Release 版本）
         "libwebp.lib",
@@ -80,10 +99,9 @@
         "shell32.lib",
         "ole32.lib",
         "oleaut32.lib",
-        "uuid.lib",
-        "comdlg32.lib",
-        
-        "/Fe:${workspaceFolder}/test_paddle_ocr.exe"
+        "uuid.lib",        
+        "comdlg32.lib",        
+        "shlwapi.lib",        // 用于 gflags PathMatchSpecA 函数
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -97,8 +115,26 @@
         "reveal": "always",
         "focus": false,
         "panel": "shared"
-      },
-      "problemMatcher": ["$msCompile"]
+      },      
+      "problemMatcher": ["$msCompile"],
+      "dependsOrder": "sequence",
+      "dependsOn": ["copy-build-dependencies"]
+    },    
+    {
+      "label": "copy-build-dependencies",
+      "type": "shell",
+      "command": "powershell",
+      "args": [        "-ExecutionPolicy", "Bypass",
+        "-Command",
+        "Write-Host 'Copying dependencies to build directory...'; if (!(Test-Path 'build')) { New-Item -ItemType Directory -Path 'build' -Force | Out-Null }; if (Test-Path 'bin\\msvc\\*.dll') { Copy-Item -Path 'bin\\msvc\\*.dll' -Destination 'build\\' -Force; Write-Host 'DLL files from bin/msvc copied successfully' } else { Write-Host 'No DLL files found in bin/msvc' }; if (Test-Path 'C:\\Windows\\System32\\vcomp140.dll') { Copy-Item -Path 'C:\\Windows\\System32\\vcomp140.dll' -Destination 'build\\' -Force; Write-Host 'vcomp140.dll copied successfully' } else { Write-Host 'vcomp140.dll not found in System32' }; if (Test-Path 'models') { if (!(Test-Path 'build\\models')) { Copy-Item -Path 'models' -Destination 'build\\' -Recurse -Force; Write-Host 'Models directory copied successfully' } else { Write-Host 'Models directory already exists, skipping copy' } } else { Write-Host 'Models directory not found' }; Write-Host 'Dependencies copy completed!'"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
     }
   ]
 }
