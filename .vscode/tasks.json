@@ -43,14 +43,14 @@
         "/I", "${env:VCPKG_STATIC}/include",       
         "/I", "${env:VCPKG_STATIC}/include/opencv4",      
 
-        "/Fe:${workspaceFolder}\\build\\ocr.exe",   // 指定输出文件名
+        "/Fe:${workspaceFolder}\\build\\ocr-service.exe",   // 指定输出文件名
         "/Fo:${workspaceFolder}\\build\\",          // 指定对象文件输出目录
-        "/Fd:${workspaceFolder}\\build\\vc.pdb",    // 指定编译器PDB文件
+        "/Fd:${workspaceFolder}\\build\\ocr-service.pdb",    // 指定编译器PDB文件
         
         "/link",
         "/DEBUG",            // 生成调试信息
-        "/PDB:${workspaceFolder}\\build\\ocr.pdb",  // 指定链接器PDB文件位置
-        "/ILK:${workspaceFolder}\\build\\ocr.ilk",  // 指定增量链接文件位置
+        "/PDB:${workspaceFolder}\\build\\ocr-service.pdb",  // 指定链接器PDB文件位置
+        "/ILK:${workspaceFolder}\\build\\ocr-service.ilk",  // 指定增量链接文件位置
         // 排除 Debug 运行时库
         "/NODEFAULTLIB:msvcprtd.lib",
         "/NODEFAULTLIB:msvcrtd.lib",

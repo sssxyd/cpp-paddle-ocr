@@ -58,10 +58,14 @@ private:
     void ipcServerLoop();
     void handleClientConnection(HANDLE pipe_handle);
     std::string processIPCRequest(const std::string& request_json);
-
     
-    // 请求处理
-    std::future<std::string> processOCRRequest(const std::string& image_path);
+    // Base64 编码/解码辅助函数
+    static std::string base64Encode(const std::vector<uchar>& data);
+    static std::vector<uchar> base64Decode(const std::string& encoded);
+    static cv::Mat base64ToMat(const std::string& base64_string);
+    static std::string matToBase64(const cv::Mat& image);
+    
+      // 请求处理（统一转换为cv::Mat后传递给worker）
     std::future<std::string> processOCRRequest(const cv::Mat& image);
     
     std::string model_dir_;
@@ -70,20 +74,19 @@ private:
     int cpu_workers_;
     std::atomic<bool> running_;
     std::atomic<int> request_counter_;
-    
-    // 硬件信息
-    bool has_gpu_;
-    int cpu_cores_;
-    int gpu_memory_mb_;
-    
+
     // Worker 管理
     std::unique_ptr<GPUWorkerPool> gpu_worker_pool_;
     std::unique_ptr<CPUWorkerPool> cpu_worker_pool_;
-    
-    // IPC 线程
+      // IPC 线程
     std::thread ipc_thread_;
     std::vector<std::thread> client_threads_;
     std::mutex client_threads_mutex_;
+    
+    // 管道缓冲区配置常量
+    static const int PIPE_OUTPUT_BUFFER_SIZE = 65536;    // 64KB - OCR结果通常很小
+    static const int PIPE_INPUT_BUFFER_SIZE = 1048576;   // 1MB - 需要接收大图像数据
+    static const int READ_BUFFER_SIZE = 1048576;         // 1MB - 应用层读取缓冲区，与管道输入缓冲区匹配
     
     // 统计信息
     std::atomic<int> total_requests_;

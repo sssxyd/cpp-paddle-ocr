@@ -31,21 +31,19 @@ void printUsage() {
     std::cout << "\nOptions:\n";
     std::cout << "  --model-dir <path>    模型文件目录路径 (默认: ./models)\n";
     std::cout << "  --pipe-name <name>    命名管道名称 (默认: \\\\.\\pipe\\ocr_service)\n";
-    std::cout << "  --force-cpu           强制使用CPU模式\n";
-    std::cout << "  --gpu-workers <num>   GPU Worker数量 (默认: 1)\n";
+    std::cout << "  --gpu-workers <num>   GPU Worker数量 (默认: 0)\n";
     std::cout << "  --cpu-workers <num>   CPU Worker数量 (默认: 1)\n";
     std::cout << "  --help                显示此帮助信息\n";
     std::cout << "\n示例:\n";
     std::cout << "  ocr_service --model-dir ./models --pipe-name \\\\.\\pipe\\my_ocr\n";
-    std::cout << "  ocr_service --force-cpu --cpu-workers 4\n";
+    std::cout << "  ocr_service --cpu-workers 4\n";
     std::cout << "  ocr_service --gpu-workers 2  # 使用2个GPU Worker\n";
 }
 
 int main(int argc, char* argv[]) {
     std::string model_dir = "./models";
     std::string pipe_name = "\\\\.\\pipe\\ocr_service";
-    bool force_cpu = false;
-    int gpu_workers = 1;  // 默认1个GPU Worker
+    int gpu_workers = 0;  // 默认0个GPU Worker, 使用CPU处理
     int cpu_workers = 1;  // 默认1个CPU Worker
     
     // 解析命令行参数
@@ -61,10 +59,7 @@ int main(int argc, char* argv[]) {
         }
         else if (arg == "--pipe-name" && i + 1 < argc) {
             pipe_name = argv[++i];
-        }
-        else if (arg == "--force-cpu") {
-            force_cpu = true;
-        }        
+        }       
         else if (arg == "--gpu-workers" && i + 1 < argc) {
             gpu_workers = std::stoi(argv[++i]);
         }
@@ -80,7 +75,6 @@ int main(int argc, char* argv[]) {
     std::cout << "=== PaddleOCR IPC Service ===" << std::endl;
     std::cout << "Model Directory: " << model_dir << std::endl;
     std::cout << "Pipe Name: " << pipe_name << std::endl;
-    std::cout << "Force CPU: " << (force_cpu ? "Yes" : "No") << std::endl;
     std::cout << "GPU Workers: " << gpu_workers << std::endl;
     std::cout << "CPU Workers: " << cpu_workers << std::endl;
     std::cout << "==============================" << std::endl;
@@ -90,7 +84,7 @@ int main(int argc, char* argv[]) {
         if (!SetConsoleCtrlHandler(ConsoleHandler, TRUE)) {
             std::cerr << "Warning: Could not set console handler" << std::endl;
         }        // 创建并启动服务
-        g_service = std::make_unique<PaddleOCR::OCRIPCService>(model_dir, pipe_name, force_cpu, gpu_workers, cpu_workers);
+        g_service = std::make_unique<PaddleOCR::OCRIPCService>(model_dir, pipe_name, gpu_workers, cpu_workers);
         
         if (!g_service->start()) {
             std::cerr << "Failed to start OCR service" << std::endl;

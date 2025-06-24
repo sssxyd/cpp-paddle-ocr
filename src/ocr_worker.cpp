@@ -152,21 +152,12 @@ OCRResult OCRWorker::processRequest(const OCRRequest& request) {
     OCRResult result;
     result.request_id = request.request_id;
     result.success = false;
-    
-    try {
-        cv::Mat image;
+      try {
+        cv::Mat image = request.image_data;
         
-        // 加载图像
-        if (!request.image_path.empty()) {
-            image = cv::imread(request.image_path);
-            if (image.empty()) {
-                result.error_message = "Failed to load image: " + request.image_path;
-                return result;
-            }
-        } else if (!request.image_data.empty()) {
-            image = request.image_data;
-        } else {
-            result.error_message = "No image data provided";
+        // 验证图像数据
+        if (image.empty()) {
+            result.error_message = "Empty image data provided";
             return result;
         }
         

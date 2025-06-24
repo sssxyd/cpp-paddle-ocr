@@ -21,13 +21,10 @@ namespace PaddleOCR {
  */
 struct OCRRequest {
     int request_id;
-    std::string image_path;
-    cv::Mat image_data;
+    cv::Mat image_data;                 // 统一使用cv::Mat存储图像数据
     std::promise<std::string> result_promise;
     
-    OCRRequest(int id, const std::string& path) 
-        : request_id(id), image_path(path) {}
-    
+    // 构造函数：使用cv::Mat（worker只需要处理这一种情况）
     OCRRequest(int id, const cv::Mat& img) 
         : request_id(id), image_data(img.clone()) {}
 };

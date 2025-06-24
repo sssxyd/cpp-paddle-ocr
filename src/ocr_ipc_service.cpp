@@ -4,8 +4,61 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <filesystem>
+#include <future>
+#include <chrono>
+#include <thread>
+#include <windows.h>
 
 namespace PaddleOCR {
+
+// Base64编码表
+static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// Base64 编码/解码辅助函数实现
+std::string OCRIPCService::base64Encode(const std::vector<uchar>& data) {
+    std::string encoded;
+    int val = 0, valb = -6;
+    for (uchar c : data) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            encoded.push_back(base64_chars[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6) encoded.push_back(base64_chars[((val << 8) >> (valb + 8)) & 0x3F]);
+    while (encoded.size() % 4) encoded.push_back('=');
+    return encoded;
+}
+
+std::vector<uchar> OCRIPCService::base64Decode(const std::string& encoded) {
+    std::vector<uchar> decoded;
+    int val = 0, valb = -8;
+    for (uchar c : encoded) {
+        if (c == '=') break;
+        if (base64_chars.find(c) == std::string::npos) continue;
+        val = (val << 6) + base64_chars.find(c);
+        valb += 6;
+        if (valb >= 0) {
+            decoded.push_back(char((val >> valb) & 0xFF));
+            valb -= 8;
+        }
+    }
+    return decoded;
+}
+
+cv::Mat OCRIPCService::base64ToMat(const std::string& base64_string) {
+    std::vector<uchar> data = base64Decode(base64_string);
+    return cv::imdecode(data, cv::IMREAD_COLOR);
+}
+
+std::string OCRIPCService::matToBase64(const cv::Mat& image) {
+    std::vector<uchar> buffer;
+    cv::imencode(".jpg", image, buffer);
+    return base64Encode(buffer);
+}
+
 
 // OCRIPCService 实现
 OCRIPCService::OCRIPCService(const std::string& model_dir, const std::string& pipe_name, 
@@ -24,7 +77,6 @@ OCRIPCService::OCRIPCService(const std::string& model_dir, const std::string& pi
         // 使用指定的GPU Worker数量
         gpu_worker_pool_ = std::make_unique<GPUWorkerPool>(model_dir_, gpu_workers_);
         std::cout << "  Mode: GPU (" << gpu_workers_ << " Workers)" << std::endl;
-        std::cout << "  GPU Memory: " << gpu_memory_mb_ << " MB" << std::endl;
     } else {
         // 使用指定的CPU Worker数量
         cpu_worker_pool_ = std::make_unique<CPUWorkerPool>(model_dir_, cpu_workers_);
@@ -41,7 +93,7 @@ bool OCRIPCService::start() {
     
     try {
         // 启动worker
-        if (has_gpu_) {
+        if (gpu_workers_ > 0) {
             gpu_worker_pool_->start();
         } else {
             cpu_worker_pool_->start();
@@ -81,7 +133,7 @@ void OCRIPCService::stop() {
     }
     
     // 停止worker
-    if (has_gpu_) {
+    if (gpu_workers_ > 0) {
         gpu_worker_pool_->stop();
     } else {
         cpu_worker_pool_->stop();
@@ -97,8 +149,8 @@ void OCRIPCService::ipcServerLoop() {
             PIPE_ACCESS_DUPLEX,
             PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
             PIPE_UNLIMITED_INSTANCES,
-            65536,  // output buffer size
-            65536,  // input buffer size
+            PIPE_OUTPUT_BUFFER_SIZE,  // 使用类常量：64KB
+            PIPE_INPUT_BUFFER_SIZE,   // 使用类常量：1MB
             0,      // default timeout
             NULL    // default security attributes
         );
@@ -124,15 +176,31 @@ void OCRIPCService::ipcServerLoop() {
 }
 
 void OCRIPCService::handleClientConnection(HANDLE pipe_handle) {
-    const int BUFFER_SIZE = 65536;
-    char buffer[BUFFER_SIZE];
+    char* buffer = new char[READ_BUFFER_SIZE];  // 使用类常量：1MB，动态分配避免栈溢出
     DWORD bytes_read;
     
     while (running_) {
-        if (ReadFile(pipe_handle, buffer, BUFFER_SIZE - 1, &bytes_read, NULL)) {
+        if (ReadFile(pipe_handle, buffer, READ_BUFFER_SIZE - 1, &bytes_read, NULL)) {
             buffer[bytes_read] = '\0';
-            std::string request(buffer);
             
+            // 检查数据是否可能被截断
+            if (bytes_read == READ_BUFFER_SIZE - 1) {
+                std::cerr << "Warning: Received data may be truncated (reached buffer limit of " 
+                         << READ_BUFFER_SIZE << " bytes)" << std::endl;
+                
+                // 返回错误响应
+                Json::Value error_response;
+                error_response["success"] = false;
+                error_response["error"] = "Data too large for buffer (max 1MB). Consider using file path transmission.";
+                Json::StreamWriterBuilder writer_builder;
+                std::string error_str = Json::writeString(writer_builder, error_response);
+                
+                DWORD bytes_written;
+                WriteFile(pipe_handle, error_str.c_str(), error_str.length(), &bytes_written, NULL);
+                continue;
+            }
+            
+            std::string request(buffer);
             std::string response = processIPCRequest(request);
             
             DWORD bytes_written;
@@ -142,6 +210,7 @@ void OCRIPCService::handleClientConnection(HANDLE pipe_handle) {
         }
     }
     
+    delete[] buffer;
     DisconnectNamedPipe(pipe_handle);
     CloseHandle(pipe_handle);
 }
@@ -161,20 +230,48 @@ std::string OCRIPCService::processIPCRequest(const std::string& request_json) {
             return Json::writeString(writer_builder, error_response);
         }
         
-        std::string command = request.get("command", "").asString();
-        
+        std::string command = request.get("command", "").asString();        
         if (command == "recognize") {
-            std::string image_path = request.get("image_path", "").asString();
+            cv::Mat image;
+            std::string error_msg;
             
-            if (image_path.empty()) {
+            // 检查传输方式：路径、Base64数据或字节数组
+            std::string image_path = request.get("image_path", "").asString();
+            std::string image_base64 = request.get("image_data", "").asString();
+            
+            if (!image_path.empty()) {
+                // 方式1: 使用文件路径
+                image = cv::imread(image_path);
+                if (image.empty()) {
+                    error_msg = "Failed to load image from path: " + image_path;
+                }
+            }
+            else if (!image_base64.empty()) {
+                // 方式2: 使用Base64编码数据
+                try {
+                    image = base64ToMat(image_base64);
+                    if (image.empty()) {
+                        error_msg = "Failed to decode base64 image data";
+                    }
+                } catch (const std::exception& e) {
+                    error_msg = "Base64 decode error: " + std::string(e.what());
+                }
+            }
+            else {
+                error_msg = "Missing image_path or image_data";
+            }
+            
+            // 如果有错误，返回错误响应
+            if (!error_msg.empty()) {
                 Json::Value error_response;
                 error_response["success"] = false;
-                error_response["error"] = "Missing image_path";
+                error_response["error"] = error_msg;
                 Json::StreamWriterBuilder writer_builder;
                 return Json::writeString(writer_builder, error_response);
             }
             
-            auto future = processOCRRequest(image_path);
+            // 统一处理cv::Mat格式的图像
+            auto future = processOCRRequest(image);
             return future.get();
         }
         else if (command == "status") {
@@ -201,26 +298,13 @@ std::string OCRIPCService::processIPCRequest(const std::string& request_json) {
     }
 }
 
-std::future<std::string> OCRIPCService::processOCRRequest(const std::string& image_path) {
-    int request_id = request_counter_.fetch_add(1);
-    auto request = std::make_shared<OCRRequest>(request_id, image_path);
-    
-    total_requests_.fetch_add(1);
-    
-    if (has_gpu_) {
-        return gpu_worker_pool_->submitRequest(request);
-    } else {
-        return cpu_worker_pool_->submitRequest(request);
-    }
-}
-
 std::future<std::string> OCRIPCService::processOCRRequest(const cv::Mat& image) {
     int request_id = request_counter_.fetch_add(1);
     auto request = std::make_shared<OCRRequest>(request_id, image);
     
     total_requests_.fetch_add(1);
     
-    if (has_gpu_) {
+    if (gpu_workers_ > 0) {
         return gpu_worker_pool_->submitRequest(request);
     } else {
         return cpu_worker_pool_->submitRequest(request);
