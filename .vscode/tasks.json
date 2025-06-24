@@ -19,7 +19,7 @@
         "/D_WINDOWS",                 // Windows 平台
         "/D_CRT_SECURE_NO_WARNINGS",  // 禁用安全警告
           // 编译 src 目录下的所有源文件（main.cpp放在第一位）
-        "src/main.cpp",
+        "src/demo_main.cpp",
         "src/args.cpp",
         "src/clipper.cpp", 
         "src/ocr_cls.cpp",
@@ -135,6 +135,190 @@
         "focus": false,
         "panel": "shared"
       }
+    },
+    {
+      "label": "build-ocr-service",
+      "type": "shell", 
+      "command": "cl.exe",
+      "args": [
+        "/std:c++20",
+        "/utf-8",
+        "/EHsc", 
+        "/TP",
+        "/MT",
+        "/W3",
+        "/O2",
+        "/Zi",
+        "/DNDEBUG",
+        "/DWIN32",
+        "/D_WINDOWS",
+        "/D_CRT_SECURE_NO_WARNINGS",
+        
+        // OCR Service 源文件
+        "src/ocr_service_main.cpp",
+        "src/ocr_service.cpp",
+        "src/clipper.cpp",
+        "src/ocr_cls.cpp", 
+        "src/ocr_det.cpp",
+        "src/ocr_rec.cpp",
+        "src/postprocess_op.cpp",
+        "src/preprocess_op.cpp",
+        "src/utility.cpp",
+
+        // 头文件路径
+        "/I", "${workspaceFolder}/include",
+        "/I", "${env:MSVC_INCLUDE}",
+        "/I", "${env:WIN_SDK_INCLUDE}/ucrt", 
+        "/I", "${env:WIN_SDK_INCLUDE}/shared",
+        "/I", "${env:WIN_SDK_INCLUDE}/um",
+        "/I", "${env:VCPKG_STATIC}/include",
+        "/I", "${env:VCPKG_STATIC}/include/opencv4",
+
+        "/Fe:${workspaceFolder}\\build\\ocr_service.exe",
+        "/Fo:${workspaceFolder}\\build\\service\\",
+        "/Fd:${workspaceFolder}\\build\\service\\vc.pdb",
+        
+        "/link",
+        "/DEBUG",
+        "/NODEFAULTLIB:msvcprtd.lib",
+        "/NODEFAULTLIB:msvcrtd.lib", 
+        "/NODEFAULTLIB:libcmtd.lib",
+        "/LIBPATH:${env:MSVC_LIB}",
+        "/LIBPATH:${env:WIN_SDK_LIB}/ucrt/x64",
+        "/LIBPATH:${env:WIN_SDK_LIB}/um/x64",
+        "/LIBPATH:${env:VCPKG_STATIC}/lib",
+        "/LIBPATH:${workspaceFolder}/lib/msvc",
+        
+        // 库文件
+        "paddle_inference.lib",
+        "opencv_highgui4.lib",
+        "opencv_imgcodecs4.lib", 
+        "opencv_imgproc4.lib",
+        "opencv_core4.lib",
+        "glog.lib",
+        "gflags_static.lib",
+        "yaml-cpp.lib",
+        "jsoncpp.lib",           // JSON 库
+        "libwebp.lib",
+        "libwebpdemux.lib",
+        "libwebpmux.lib",
+        "libwebpdecoder.lib",
+        "libsharpyuv.lib",
+        "zlib.lib",
+        "libpng16.lib",
+        "tiff.lib", 
+        "lzma.lib",
+        "turbojpeg.lib",
+        "kernel32.lib",
+        "user32.lib",
+        "gdi32.lib",
+        "advapi32.lib",
+        "shell32.lib",
+        "ole32.lib",
+        "oleaut32.lib",
+        "uuid.lib",
+        "comdlg32.lib",
+        "shlwapi.lib"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build"
+    },
+    {
+      "label": "build-ocr-client",
+      "type": "shell",
+      "command": "cl.exe", 
+      "args": [
+        "/std:c++20",
+        "/utf-8",
+        "/EHsc",
+        "/TP",
+        "/MT",
+        "/W3",
+        "/O2",
+        "/Zi",
+        "/DNDEBUG",
+        "/DWIN32",
+        "/D_WINDOWS", 
+        "/D_CRT_SECURE_NO_WARNINGS",
+        
+        // OCR Client 源文件
+        "src/ocr_client_main.cpp",
+        "src/ocr_service.cpp",
+        "src/args.cpp",
+        "src/clipper.cpp",
+        "src/ocr_cls.cpp",
+        "src/ocr_det.cpp", 
+        "src/ocr_rec.cpp",
+        "src/paddleocr.cpp",
+        "src/paddlestructure.cpp",
+        "src/postprocess_op.cpp",
+        "src/preprocess_op.cpp",
+        "src/structure_layout.cpp",
+        "src/structure_table.cpp",
+        "src/utility.cpp",
+
+        // 头文件路径
+        "/I", "${workspaceFolder}/include",
+        "/I", "${env:MSVC_INCLUDE}", 
+        "/I", "${env:WIN_SDK_INCLUDE}/ucrt",
+        "/I", "${env:WIN_SDK_INCLUDE}/shared",
+        "/I", "${env:WIN_SDK_INCLUDE}/um",
+        "/I", "${env:VCPKG_STATIC}/include",
+        "/I", "${env:VCPKG_STATIC}/include/opencv4",
+
+        "/Fe:${workspaceFolder}\\build\\ocr_client.exe",
+        "/Fo:${workspaceFolder}\\build\\client\\",
+        "/Fd:${workspaceFolder}\\build\\client\\vc.pdb",
+        
+        "/link",
+        "/DEBUG",
+        "/NODEFAULTLIB:msvcprtd.lib",
+        "/NODEFAULTLIB:msvcrtd.lib",
+        "/NODEFAULTLIB:libcmtd.lib", 
+        "/LIBPATH:${env:MSVC_LIB}",
+        "/LIBPATH:${env:WIN_SDK_LIB}/ucrt/x64",
+        "/LIBPATH:${env:WIN_SDK_LIB}/um/x64",
+        "/LIBPATH:${env:VCPKG_STATIC}/lib",
+        "/LIBPATH:${workspaceFolder}/lib/msvc",
+        
+        // 库文件
+        "paddle_inference.lib",
+        "opencv_highgui4.lib",
+        "opencv_imgcodecs4.lib",
+        "opencv_imgproc4.lib", 
+        "opencv_core4.lib",
+        "glog.lib",
+        "gflags_static.lib",
+        "yaml-cpp.lib",
+        "jsoncpp.lib",           // JSON 库
+        "cudart.lib",            // CUDA 运行时
+        "libwebp.lib",
+        "libwebpdemux.lib",
+        "libwebpmux.lib",
+        "libwebpdecoder.lib",
+        "libsharpyuv.lib",
+        "zlib.lib",
+        "libpng16.lib",
+        "tiff.lib",
+        "lzma.lib", 
+        "turbojpeg.lib",
+        "kernel32.lib",
+        "user32.lib",
+        "gdi32.lib",
+        "advapi32.lib",
+        "shell32.lib",
+        "ole32.lib",
+        "oleaut32.lib",
+        "uuid.lib",
+        "comdlg32.lib",
+        "shlwapi.lib"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build"
     }
   ]
 }

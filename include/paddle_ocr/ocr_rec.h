@@ -103,8 +103,10 @@ public:
       } catch (const YAML::Exception &e) {
         std::cerr << "Failed to load YAML file: " << e.what() << std::endl;
       }
-      if (label_path == "../../ppocr/utils/ppocr_keys_v1.txt" &&
-          !rec_char_list.empty()) {
+      
+      // 提取文件名进行比较
+      std::string filename = label_path.substr(label_path.find_last_of("/\\") + 1);
+      if (filename == "ppocr_keys_v1.txt" && !rec_char_list.empty()) {
         std::string new_rec_char_dict_path = model_dir + "/ppocr_keys.txt";
         std::ofstream new_file(new_rec_char_dict_path);
         if (new_file.is_open()) {
