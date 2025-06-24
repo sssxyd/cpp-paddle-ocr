@@ -29,6 +29,36 @@ namespace PaddleOCR {
 
 class CRNNRecognizer {
 public:
+  /**
+   * @brief 构造一个用于文本识别的 CRNNRecognizer 对象
+   * 
+   * 使用指定的配置参数初始化 CRNNRecognizer。
+   * 识别器基于 CRNN (卷积循环神经网络) 架构，用于将文本区域图像
+   * 转换为可读的文本字符串，支持中英文等多种语言。
+   * 
+   * @param model_dir 包含推理模型文件的目录路径
+   *                  (inference.pdmodel, inference.pdiparams, inference.yml)
+   * @param use_gpu 是否使用 GPU 进行推理 (true) 或使用 CPU (false)
+   * @param gpu_id 要使用的 GPU 设备 ID (仅在 use_gpu=true 时有效)
+   * @param gpu_mem GPU 内存限制，单位 MB (仅在 use_gpu=true 时有效)
+   * @param cpu_math_library_num_threads 数学库使用的 CPU 线程数
+   * @param use_mkldnn 是否启用 Intel MKL-DNN 优化进行 CPU 推理
+   * @param label_path 字符字典文件路径，包含模型可识别的所有字符
+   * @param use_tensorrt 是否启用 TensorRT 优化 (需要 TensorRT 和 GPU)
+   * @param precision 推理精度 ("fp32", "fp16", "int8")
+   * @param rec_batch_num 批处理大小，同时处理的文本区域图像数量
+   * @param rec_img_h 输入图像的标准化高度 (像素)
+   * @param rec_img_w 输入图像的标准化宽度 (像素)
+   * 
+   * @throws std::runtime_error 如果模型加载失败或字典文件读取失败
+   * @throws YAML::Exception 如果 inference.yml 解析失败
+   * @throws std::ios_base::failure 如果字符字典文件无法打开
+   * 
+   * @note 构造函数标记为 explicit 以防止隐式转换
+   * @note 会自动在字符列表开头添加 CTC 空白字符 "#"，末尾添加空格字符
+   * @note 如果 YAML 配置中包含字符字典，会自动生成新的字典文件
+   * @note 构造函数是 noexcept，但在关键错误时可能调用 std::exit()
+   */
   explicit CRNNRecognizer(const std::string &model_dir, const bool &use_gpu,
                           const int &gpu_id, const int &gpu_mem,
                           const int &cpu_math_library_num_threads,

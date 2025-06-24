@@ -29,6 +29,32 @@ namespace PaddleOCR {
 
 class Classifier {
 public:
+  /**
+   * @brief 构造一个用于文本方向分类的 Classifier 对象
+   * 
+   * 使用指定的配置参数初始化 Classifier。
+   * 分类器用于判断检测到的文本区域是否需要旋转（0度或180度），
+   * 通常用于处理倒置的文本图像。
+   * 
+   * @param model_dir 包含推理模型文件的目录路径
+   *                  (inference.pdmodel, inference.pdiparams, inference.yml)
+   * @param use_gpu 是否使用 GPU 进行推理 (true) 或使用 CPU (false)
+   * @param gpu_id 要使用的 GPU 设备 ID (仅在 use_gpu=true 时有效)
+   * @param gpu_mem GPU 内存限制，单位 MB (仅在 use_gpu=true 时有效)
+   * @param cpu_math_library_num_threads 数学库使用的 CPU 线程数
+   * @param use_mkldnn 是否启用 Intel MKL-DNN 优化进行 CPU 推理
+   * @param cls_thresh 分类置信度阈值 (0.0-1.0)，低于此值的结果将被忽略
+   * @param use_tensorrt 是否启用 TensorRT 优化 (需要 TensorRT 和 GPU)
+   * @param precision 推理精度 ("fp32", "fp16", "int8")
+   * @param cls_batch_num 批处理大小，同时处理的图像数量
+   * 
+   * @throws std::runtime_error 如果模型加载失败或检测到不支持的模型
+   * @throws YAML::Exception 如果 inference.yml 解析失败
+   * 
+   * @note 构造函数标记为 explicit 以防止隐式转换
+   * @note 支持的模型："PP-LCNet_x0_25_textline_ori", "PP-LCNet_x1_0_textline_ori"
+   * @note 构造函数是 noexcept，但在关键错误时可能调用 std::exit()
+   */
   explicit Classifier(const std::string &model_dir, const bool &use_gpu,
                       const int &gpu_id, const int &gpu_mem,
                       const int &cpu_math_library_num_threads,

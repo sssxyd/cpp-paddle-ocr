@@ -29,6 +29,38 @@ namespace PaddleOCR {
 
 class StructureTableRecognizer {
 public:
+  /**
+   * @brief 构造一个用于表格结构识别的 StructureTableRecognizer 对象
+   * 
+   * 使用指定的配置参数初始化 StructureTableRecognizer。
+   * 识别器基于深度学习模型，专门用于识别表格的结构信息，
+   * 能够解析表格的行列布局、单元格合并关系，并输出 HTML 格式的表格结构。
+   * 
+   * @param model_dir 包含推理模型文件的目录路径
+   *                  (inference.pdmodel, inference.pdiparams, inference.yml)
+   * @param use_gpu 是否使用 GPU 进行推理 (true) 或使用 CPU (false)
+   * @param gpu_id 要使用的 GPU 设备 ID (仅在 use_gpu=true 时有效)
+   * @param gpu_mem GPU 内存限制，单位 MB (仅在 use_gpu=true 时有效)
+   * @param cpu_math_library_num_threads 数学库使用的 CPU 线程数
+   * @param use_mkldnn 是否启用 Intel MKL-DNN 优化进行 CPU 推理
+   * @param label_path 表格结构标签文件路径，包含表格元素标记(如 <td>, <th>, <tr> 等)
+   * @param use_tensorrt 是否启用 TensorRT 优化 (需要 TensorRT 和 GPU)
+   * @param precision 推理精度 ("fp32", "fp16", "int8")
+   * @param table_batch_num 批处理大小，同时处理的表格图像数量
+   * @param table_max_len 表格序列的最大长度限制
+   * @param merge_no_span_structure 是否合并无跨度的表格结构元素
+   * 
+   * @throws std::runtime_error 如果模型加载失败或标签文件读取失败
+   * @throws YAML::Exception 如果 inference.yml 解析失败
+   * @throws std::ios_base::failure 如果标签文件无法打开
+   * 
+   * @note 构造函数标记为 explicit 以防止隐式转换
+   * @note 专门用于表格结构分析，输出 HTML 标签序列描述表格结构
+   * @note 支持复杂表格，包括单元格合并(rowspan/colspan)的处理
+   * @note 会自动初始化后处理器，设置结构合并参数
+   * @note 如果 YAML 配置中包含字符字典，会自动生成新的标签文件
+   * @note 构造函数是 noexcept，但在关键错误时可能调用 std::exit()
+   */
   explicit StructureTableRecognizer(
       const std::string &model_dir, const bool &use_gpu, const int &gpu_id,
       const int &gpu_mem, const int &cpu_math_library_num_threads,
