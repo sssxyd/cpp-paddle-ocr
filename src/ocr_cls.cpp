@@ -169,6 +169,8 @@ void Classifier::LoadModel(const std::string &model_dir) noexcept {
   config.EnableMemoryOptim();
   config.DisableGlogInfo();
 
+  std::cout << "[INFO] Using Classifier Model: " << model_file_path
+            << ", param: " << param_file_path << std::endl;
   this->predictor_ = paddle_infer::CreatePredictor(config);
 }
 } // namespace PaddleOCR
