@@ -42,7 +42,7 @@ void printUsage() {
     std::cout << "\n示例:\n";
     std::cout << "  ocr_service --model-dir ./models --pipe-name \\\\.\\pipe\\my_ocr\n";
     std::cout << "  ocr_service --cpu-workers 4\n";
-    std::cout << "  ocr_service --gpu-workers 2  # 使用2个GPU Worker\n";
+    std::cout << "  ocr_service --gpu-workers 2\n";
     std::cout << "  ocr_service --shutdown-event Global\\\\OCRServiceShutdown\n";
 }
 
@@ -117,22 +117,24 @@ int main(int argc, char* argv[]) {
         // 主循环 - 监听关闭事件和定期输出状态信息
         while (g_service->isRunning()) {
             DWORD wait_result = WAIT_TIMEOUT;
-              if (g_shutdown_event) {
-                // 等待关闭事件或超时 (延长到10秒，减少唤醒频率)
-                wait_result = WaitForSingleObject(g_shutdown_event, 10000); // 10秒超时
+            
+            if (g_shutdown_event) {
+                // 等待关闭事件或超时
+                wait_result = WaitForSingleObject(g_shutdown_event, 5000); // 5秒超时
             } else {
                 // 没有关闭事件，只是简单等待
-                std::this_thread::sleep_for(std::chrono::seconds(10));
+                std::this_thread::sleep_for(std::chrono::seconds(5));
             }
             
             if (wait_result == WAIT_OBJECT_0) {
                 // 收到关闭信号
                 std::cout << "Received shutdown event, stopping service..." << std::endl;
                 g_service->stop();
-                break;            } else if (wait_result == WAIT_TIMEOUT) {
+                break;
+            } else if (wait_result == WAIT_TIMEOUT) {
                 // 超时，继续运行并输出状态（每30秒一次）
                 static int status_counter = 0;
-                if (++status_counter >= 3) { // 10秒 * 3 = 30秒
+                if (++status_counter >= 6) { // 5秒 * 6 = 30秒
                     status_counter = 0;
                     if (g_service->isRunning()) {
                         std::cout << "Service Status: " << g_service->getStatusInfo() << std::endl;

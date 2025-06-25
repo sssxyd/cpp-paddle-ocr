@@ -24,12 +24,10 @@ public:
     
 private:
     OCRWorker* getAvailableWorker();
-    bool checkGPUMemory(int num_workers);  // 检查GPU内存是否足够
     
     std::vector<std::unique_ptr<OCRWorker>> workers_;
     std::mutex workers_mutex_;
     std::atomic<int> next_worker_index_;
-    int gpu_memory_per_worker_mb_;
 };
 
 } // namespace PaddleOCR
