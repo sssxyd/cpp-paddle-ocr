@@ -21,6 +21,7 @@
    - glog:x64-windows-static
    - gflags:x64-windows-static
    - jsoncpp:x64-windows-static
+   - aklomp-base64:x64-windows-static
 5. 设置环境变量
    - VCPKG_STATIC: `E:\vcpkg\installed\x64-windows-static`
 

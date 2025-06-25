@@ -13,11 +13,12 @@
         "/MT",               // 改为 Release 静态运行时库
         "/W3",
         "/O2",               // Release 优化
-        "/Zi",              // 调试信息
+        "/Zi",              // 调试信息        
         "/DNDEBUG",          // Release 宏定义
         "/DWIN32",          // 定义 Windows 平台
         "/D_WINDOWS",                 // Windows 平台
         "/D_CRT_SECURE_NO_WARNINGS",  // 禁用安全警告
+        "/DBASE64_STATIC_DEFINE",     // 定义 Base64 静态库宏
           // 编译 src 目录下的所有源文件（main.cpp放在第一位）
         "src/ocr_service_main.cpp",
         "src/ocr_service.cpp",
@@ -150,11 +151,12 @@
         "/MT",
         "/W3",
         "/O2",
-        "/Zi",
-        "/DNDEBUG",
+        "/Zi",        "/DNDEBUG",
         "/DWIN32",
         "/D_WINDOWS", 
-        "/D_CRT_SECURE_NO_WARNINGS",        // OCR Client 源文件（仅客户端相关）
+        "/D_CRT_SECURE_NO_WARNINGS",
+        "/DBASE64_STATIC_DEFINE",     // 定义 Base64 静态库宏
+        // OCR Client 源文件（仅客户端相关）
         "src/ocr_client_main.cpp",
         "src/ocr_ipc_client.cpp",
         
@@ -166,12 +168,14 @@
         "/I", "${env:WIN_SDK_INCLUDE}/um",
         "/I", "${env:VCPKG_STATIC}/include",
 
-        "/Fe:${workspaceFolder}\\build\\ocr_client.exe",
+        "/Fe:${workspaceFolder}\\build\\client\\ocr-client.exe",
         "/Fo:${workspaceFolder}\\build\\client\\",
-        "/Fd:${workspaceFolder}\\build\\client\\vc.pdb",
+        "/Fd:${workspaceFolder}\\build\\client\\ocr-client.pdb",
         
         "/link",
         "/DEBUG",
+        "/PDB:${workspaceFolder}\\build\\client\\ocr-client.pdb",  // 指定链接器PDB文件位置
+        "/ILK:${workspaceFolder}\\build\\client\\ocr-client.ilk",  // 指定增量链接文件位置        
         "/NODEFAULTLIB:msvcprtd.lib",
         "/NODEFAULTLIB:msvcrtd.lib",
         "/NODEFAULTLIB:libcmtd.lib", 
@@ -180,6 +184,7 @@
         "/LIBPATH:${env:WIN_SDK_LIB}/um/x64",
         "/LIBPATH:${env:VCPKG_STATIC}/lib",
         "jsoncpp.lib",           // JSON 解析
+        "base64.lib",         // Base64 编码/解码
         "kernel32.lib",          // Windows API
         "user32.lib",
         "advapi32.lib",

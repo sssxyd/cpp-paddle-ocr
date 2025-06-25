@@ -13,7 +13,6 @@
 #include "gpu_worker_pool.h"
 #include "cpu_worker_pool.h"
 #include "ocr_ipc_service.h"
-#include "ocr_ipc_client.h"
 
 namespace PaddleOCR {
 
