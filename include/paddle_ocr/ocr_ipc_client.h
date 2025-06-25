@@ -3,7 +3,6 @@
 #include <string>
 #include <mutex>
 #include <windows.h>
-#include <opencv2/opencv.hpp>
 
 namespace PaddleOCR {
 
@@ -19,7 +18,6 @@ public:
     void disconnect();
     
     std::string recognizeImage(const std::string& image_path);
-    std::string recognizeImage(const cv::Mat& image);
     
     bool isConnected() const { return connected_; }
 

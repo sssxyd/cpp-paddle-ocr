@@ -121,7 +121,8 @@
         "xstring": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "resumable": "cpp"
+        "resumable": "cpp",
+        "stack": "cpp"
     },
     "C_Cpp.default.compilerPath": "cl.exe",
 }

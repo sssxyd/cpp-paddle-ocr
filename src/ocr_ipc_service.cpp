@@ -9,56 +9,38 @@
 #include <chrono>
 #include <thread>
 #include <windows.h>
+#include <libbase64.h>
 
 namespace PaddleOCR {
 
-// Base64编码表
-static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-// Base64 编码/解码辅助函数实现
-std::string OCRIPCService::base64Encode(const std::vector<uchar>& data) {
-    std::string encoded;
-    int val = 0, valb = -6;
-    for (uchar c : data) {
-        val = (val << 8) + c;
-        valb += 8;
-        while (valb >= 0) {
-            encoded.push_back(base64_chars[(val >> valb) & 0x3F]);
-            valb -= 6;
-        }
-    }
-    if (valb > -6) encoded.push_back(base64_chars[((val << 8) >> (valb + 8)) & 0x3F]);
-    while (encoded.size() % 4) encoded.push_back('=');
-    return encoded;
-}
-
 std::vector<uchar> OCRIPCService::base64Decode(const std::string& encoded) {
-    std::vector<uchar> decoded;
-    int val = 0, valb = -8;
-    for (uchar c : encoded) {
-        if (c == '=') break;
-        if (base64_chars.find(c) == std::string::npos) continue;
-        val = (val << 6) + base64_chars.find(c);
-        valb += 6;
-        if (valb >= 0) {
-            decoded.push_back(char((val >> valb) & 0xFF));
-            valb -= 8;
-        }
+    if (encoded.empty()) {
+        return {};
     }
-    return decoded;
+    
+    // 计算解码后的最大长度 (大约是输入长度的 3/4)
+    size_t max_out_len = (encoded.size() * 3) / 4 + 1;
+    
+    // 分配输出缓冲区
+    std::vector<uchar> decoded(max_out_len);
+    
+    // 执行解码
+    size_t actual_out_len = 0;
+    int result = base64_decode(encoded.c_str(), encoded.size(), 
+                              reinterpret_cast<char*>(decoded.data()), &actual_out_len, 0);
+    
+    if (result == 1) {  // 成功
+        decoded.resize(actual_out_len);
+        return decoded;
+    }
+    
+    return {}; // 解码失败
 }
 
 cv::Mat OCRIPCService::base64ToMat(const std::string& base64_string) {
     std::vector<uchar> data = base64Decode(base64_string);
     return cv::imdecode(data, cv::IMREAD_COLOR);
 }
-
-std::string OCRIPCService::matToBase64(const cv::Mat& image) {
-    std::vector<uchar> buffer;
-    cv::imencode(".jpg", image, buffer);
-    return base64Encode(buffer);
-}
-
 
 // OCRIPCService 实现
 OCRIPCService::OCRIPCService(const std::string& model_dir, const std::string& pipe_name, 
@@ -143,7 +125,20 @@ void OCRIPCService::stop() {
 }
 
 void OCRIPCService::ipcServerLoop() {
+    std::cout << "OCR IPC Server started, waiting for clients..." << std::endl;
+    
+    auto last_cleanup = std::chrono::steady_clock::now();
+    const auto cleanup_interval = std::chrono::seconds(30);  // 每30秒清理一次完成的线程
+    
     while (running_) {
+        // 周期性清理已完成的客户端线程
+        auto now = std::chrono::steady_clock::now();
+        if (now - last_cleanup >= cleanup_interval) {
+            cleanupFinishedClientThreads();
+            last_cleanup = now;
+        }
+        
+        // 1. 创建命名管道实例
         HANDLE pipe_handle = CreateNamedPipeA(
             pipe_name_.c_str(),
             PIPE_ACCESS_DUPLEX,
@@ -161,31 +156,71 @@ void OCRIPCService::ipcServerLoop() {
             continue;
         }
         
+        // 2. 等待客户端连接
         if (ConnectNamedPipe(pipe_handle, NULL) || GetLastError() == ERROR_PIPE_CONNECTED) {
-            // 在新线程中处理客户端连接
+            // 3. 在新线程中处理客户端连接
             {
                 std::lock_guard<std::mutex> lock(client_threads_mutex_);
                 client_threads_.emplace_back([this, pipe_handle]() {
                     handleClientConnection(pipe_handle);
                 });
+                std::cout << "New client connected. Active client threads: " << client_threads_.size() << std::endl;
             }
         } else {
             CloseHandle(pipe_handle);
         }
+    }
+    
+    std::cout << "IPC Server loop exiting..." << std::endl;
+}
+
+void OCRIPCService::cleanupFinishedClientThreads() {
+    std::lock_guard<std::mutex> lock(client_threads_mutex_);
+    
+    // 使用 try_join 模拟的方式，实际上我们需要维护线程状态
+    // 更安全的方式是使用 std::future 或状态标志
+    // 这里先简化处理：移除不可join的线程
+    
+    auto it = client_threads_.begin();
+    size_t initial_count = client_threads_.size();
+    
+    while (it != client_threads_.end()) {
+        if (!it->joinable()) {
+            // 线程已结束且资源已释放
+            it = client_threads_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    
+    size_t cleaned_count = initial_count - client_threads_.size();
+    if (cleaned_count > 0) {
+        std::cout << "Cleaned up " << cleaned_count << " finished client threads. "
+                  << "Active threads: " << client_threads_.size() << std::endl;
     }
 }
 
 void OCRIPCService::handleClientConnection(HANDLE pipe_handle) {
     char* buffer = new char[READ_BUFFER_SIZE];  // 使用类常量：1MB，动态分配避免栈溢出
     DWORD bytes_read;
+    DWORD client_thread_id = GetCurrentThreadId();
+    
+    std::cout << "[Thread-" << client_thread_id << "] Client connected, starting message loop..." << std::endl;
     
     while (running_) {
         if (ReadFile(pipe_handle, buffer, READ_BUFFER_SIZE - 1, &bytes_read, NULL)) {
+            if (bytes_read == 0) {
+                // 客户端发送了空数据或准备关闭
+                std::cout << "[Thread-" << client_thread_id << "] Received 0 bytes, client may be closing..." << std::endl;
+                continue;
+            }
+            
             buffer[bytes_read] = '\0';
+            std::cout << "[Thread-" << client_thread_id << "] Received " << bytes_read << " bytes from client" << std::endl;
             
             // 检查数据是否可能被截断
             if (bytes_read == READ_BUFFER_SIZE - 1) {
-                std::cerr << "Warning: Received data may be truncated (reached buffer limit of " 
+                std::cerr << "[Thread-" << client_thread_id << "] Warning: Received data may be truncated (reached buffer limit of " 
                          << READ_BUFFER_SIZE << " bytes)" << std::endl;
                 
                 // 返回错误响应
@@ -196,7 +231,10 @@ void OCRIPCService::handleClientConnection(HANDLE pipe_handle) {
                 std::string error_str = Json::writeString(writer_builder, error_response);
                 
                 DWORD bytes_written;
-                WriteFile(pipe_handle, error_str.c_str(), error_str.length(), &bytes_written, NULL);
+                if (!WriteFile(pipe_handle, error_str.c_str(), error_str.length(), &bytes_written, NULL)) {
+                    std::cerr << "[Thread-" << client_thread_id << "] Failed to send error response: " << GetLastError() << std::endl;
+                    break;
+                }
                 continue;
             }
             
@@ -204,15 +242,48 @@ void OCRIPCService::handleClientConnection(HANDLE pipe_handle) {
             std::string response = processIPCRequest(request);
             
             DWORD bytes_written;
-            WriteFile(pipe_handle, response.c_str(), response.length(), &bytes_written, NULL);
+            if (!WriteFile(pipe_handle, response.c_str(), response.length(), &bytes_written, NULL)) {
+                DWORD error = GetLastError();
+                std::cerr << "[Thread-" << client_thread_id << "] Failed to send response: " << error << std::endl;
+                if (error == ERROR_BROKEN_PIPE || error == ERROR_NO_DATA) {
+                    std::cout << "[Thread-" << client_thread_id << "] Client disconnected during write" << std::endl;
+                }
+                break;
+            }
+            
+            std::cout << "[Thread-" << client_thread_id << "] Sent " << bytes_written << " bytes response to client" << std::endl;
         } else {
-            break;  // 客户端断开连接
+            // ReadFile 失败，检查具体原因
+            DWORD error = GetLastError();
+            if (error == ERROR_BROKEN_PIPE) {
+                std::cout << "[Thread-" << client_thread_id << "] Client disconnected (broken pipe)" << std::endl;
+            } else if (error == ERROR_NO_DATA) {
+                std::cout << "[Thread-" << client_thread_id << "] Client closed connection (no data)" << std::endl;
+            } else {
+                std::cerr << "[Thread-" << client_thread_id << "] ReadFile failed with error: " << error << std::endl;
+            }
+            break;  // 客户端断开连接或发生错误
         }
     }
     
+    std::cout << "[Thread-" << client_thread_id << "] Cleaning up client connection..." << std::endl;
+    
     delete[] buffer;
-    DisconnectNamedPipe(pipe_handle);
-    CloseHandle(pipe_handle);
+    
+    // 断开命名管道连接
+    if (!DisconnectNamedPipe(pipe_handle)) {
+        DWORD error = GetLastError();
+        if (error != ERROR_INVALID_HANDLE) {  // 如果句柄已无效，不需要报错
+            std::cerr << "[Thread-" << client_thread_id << "] DisconnectNamedPipe failed: " << error << std::endl;
+        }
+    }
+    
+    // 关闭管道句柄
+    if (!CloseHandle(pipe_handle)) {
+        std::cerr << "[Thread-" << client_thread_id << "] CloseHandle failed: " << GetLastError() << std::endl;
+    }
+    
+    std::cout << "[Thread-" << client_thread_id << "] Client connection cleanup completed" << std::endl;
 }
 
 std::string OCRIPCService::processIPCRequest(const std::string& request_json) {

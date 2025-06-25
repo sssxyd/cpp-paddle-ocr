@@ -57,13 +57,12 @@ private:
     // IPC 相关
     void ipcServerLoop();
     void handleClientConnection(HANDLE pipe_handle);
+    void cleanupFinishedClientThreads();
     std::string processIPCRequest(const std::string& request_json);
     
     // Base64 编码/解码辅助函数
-    static std::string base64Encode(const std::vector<uchar>& data);
     static std::vector<uchar> base64Decode(const std::string& encoded);
     static cv::Mat base64ToMat(const std::string& base64_string);
-    static std::string matToBase64(const cv::Mat& image);
     
       // 请求处理（统一转换为cv::Mat后传递给worker）
     std::future<std::string> processOCRRequest(const cv::Mat& image);

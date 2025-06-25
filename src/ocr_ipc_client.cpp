@@ -3,32 +3,30 @@
 #include <iostream>
 #include <vector>
 #include <filesystem>
+#include <fstream>
+#include <libbase64.h>
 
 namespace PaddleOCR {
 
-// Base64编码辅助函数
-static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-static std::string base64Encode(const std::vector<uchar>& data) {
-    std::string encoded;
-    int val = 0, valb = -6;
-    for (uchar c : data) {
-        val = (val << 8) + c;
-        valb += 8;
-        while (valb >= 0) {
-            encoded.push_back(base64_chars[(val >> valb) & 0x3F]);
-            valb -= 6;
-        }
+static std::string base64Encode(const std::vector<unsigned char>& data) {
+    if (data.empty()) {
+        return "";
     }
-    if (valb > -6) encoded.push_back(base64_chars[((val << 8) >> (valb + 8)) & 0x3F]);
-    while (encoded.size() % 4) encoded.push_back('=');
+    
+    // 计算编码后的最大长度 (大约是输入长度的 4/3，向上取整并加上填充)
+    size_t max_out_len = ((data.size() + 2) / 3) * 4 + 1; // +1 for null terminator safety
+    
+    // 分配输出缓冲区
+    std::string encoded(max_out_len, '\0');
+    
+    // 执行编码
+    size_t actual_out_len = 0;
+    base64_encode(reinterpret_cast<const char*>(data.data()), data.size(), 
+                  &encoded[0], &actual_out_len, 0);
+    
+    // 调整字符串大小到实际长度
+    encoded.resize(actual_out_len);
     return encoded;
-}
-
-static std::string matToBase64(const cv::Mat& image) {
-    std::vector<uchar> buffer;
-    cv::imencode(".jpg", image, buffer);
-    return base64Encode(buffer);
 }
 
 static size_t getFileSize(const std::string& filepath) {
@@ -37,6 +35,61 @@ static size_t getFileSize(const std::string& filepath) {
     } catch (const std::exception&) {
         return 0;
     }
+}
+
+// 将图片文件读取为字节数组
+static std::vector<unsigned char> readFileToBytes(const std::string& image_path) {
+    std::vector<unsigned char> buffer;
+    
+    try {
+        // 打开文件（二进制模式）
+        std::ifstream file(image_path, std::ios::binary | std::ios::ate);
+        
+        if (!file.is_open()) {
+            std::cerr << "Error: Cannot open file: " << image_path << std::endl;
+            return buffer; // 返回空的vector
+        }
+        
+        // 获取文件大小
+        std::streamsize file_size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        
+        if (file_size <= 0) {
+            std::cerr << "Error: Invalid file size: " << file_size << std::endl;
+            return buffer;
+        }
+        
+        // 调整vector大小并读取整个文件
+        buffer.resize(static_cast<size_t>(file_size));
+        
+        if (!file.read(reinterpret_cast<char*>(buffer.data()), file_size)) {
+            std::cerr << "Error: Failed to read file: " << image_path << std::endl;
+            buffer.clear(); // 读取失败，清空buffer
+            return buffer;
+        }
+        
+        file.close();
+        std::cout << "Successfully read " << file_size << " bytes from: " << image_path << std::endl;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Exception while reading file: " << e.what() << std::endl;
+        buffer.clear();
+    }
+    
+    return buffer;
+}
+
+// 直接将图片文件转换为Base64（不使用OpenCV）
+static std::string fileToBase64(const std::string& image_path) {
+    // 读取文件为字节数组
+    std::vector<unsigned char> file_bytes = readFileToBytes(image_path);
+    
+    if (file_bytes.empty()) {
+        return ""; // 读取失败
+    }
+    
+    // 转换为Base64
+    return base64Encode(file_bytes);
 }
 
 // OCRIPCClient 实现
@@ -96,12 +149,10 @@ std::string OCRIPCClient::recognizeImage(const std::string& image_path) {
     size_t file_size = getFileSize(image_path);
     // 考虑Base64编码开销(+33%)和JSON开销，限制在600KB以内确保能放入1MB缓冲区
     const size_t THRESHOLD = 600 * 1024; // 600KB
-      if (file_size > 0 && file_size < THRESHOLD) {
+    if (file_size > 0 && file_size < THRESHOLD) {
         // 小文件：读取并编码为Base64传输
-        cv::Mat image = cv::imread(image_path);
-        if (!image.empty()) {
-            std::string base64_data = matToBase64(image);
-            
+        std::string base64_data = fileToBase64(image_path);
+        if (!base64_data.empty()) {
             // 双重检查：验证最终JSON大小
             Json::Value temp_request;
             temp_request["command"] = "recognize";
@@ -131,40 +182,6 @@ std::string OCRIPCClient::recognizeImage(const std::string& image_path) {
     
     Json::StreamWriterBuilder builder;
     return sendRequest(Json::writeString(builder, request));
-}
-
-std::string OCRIPCClient::recognizeImage(const cv::Mat& image) {
-    Json::Value request;
-    request["command"] = "recognize";
-    
-    // 对于cv::Mat，编码为Base64并检查大小
-    std::string base64_data = matToBase64(image);
-    
-    // 检查最终JSON大小
-    Json::Value temp_request;
-    temp_request["command"] = "recognize";
-    temp_request["image_data"] = base64_data;
-    Json::StreamWriterBuilder builder;
-    std::string json_str = Json::writeString(builder, temp_request);
-    
-    if (json_str.length() < 1000000) {  // 小于1MB
-        request["image_data"] = base64_data;
-        std::cout << "Using Base64 transmission (JSON size: " 
-                 << json_str.length() << " bytes)" << std::endl;
-    } else {
-        // 数据太大，保存为临时文件后使用路径传输
-        std::string temp_path = "temp_" + std::to_string(GetTickCount()) + ".jpg";
-        cv::imwrite(temp_path, image);
-        request["image_path"] = temp_path;
-        std::cout << "Base64 too large (" << json_str.length() 
-                 << " bytes), using temporary file: " << temp_path << std::endl;
-        
-        // 注意：这里创建了临时文件，调用者需要负责清理
-        // 在实际应用中，可能需要更好的临时文件管理策略
-    }
-    
-    Json::StreamWriterBuilder final_builder;
-    return sendRequest(Json::writeString(final_builder, request));
 }
 
 std::string OCRIPCClient::sendRequest(const std::string& request_json) {

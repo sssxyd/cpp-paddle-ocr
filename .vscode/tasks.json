@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build-ocr-service",  
+      "label": "build-ocr-server",  
       "type": "shell",
       "command": "cl.exe",
       "args": [
@@ -72,12 +72,11 @@
         "opencv_imgproc4.lib",
         "opencv_core4.lib",
         
-        // 日志库（Release 版本）
-        "glog.lib",
+        // 日志库（Release 版本）        "glog.lib",
         "gflags_static.lib",
 
         "jsoncpp.lib",           // JSON 库
-        "yaml-cpp.lib",  // 或 yaml-cpp-static.lib
+        "base64.lib",            // Base64 编码/解码库 (aklomp-base64)
         
         // 图像格式库（Release 版本）
         "libwebp.lib",
@@ -166,7 +165,6 @@
         "/I", "${env:WIN_SDK_INCLUDE}/shared",
         "/I", "${env:WIN_SDK_INCLUDE}/um",
         "/I", "${env:VCPKG_STATIC}/include",
-        "/I", "${env:VCPKG_STATIC}/include/opencv4",
 
         "/Fe:${workspaceFolder}\\build\\ocr_client.exe",
         "/Fo:${workspaceFolder}\\build\\client\\",
@@ -181,7 +179,6 @@
         "/LIBPATH:${env:WIN_SDK_LIB}/ucrt/x64",
         "/LIBPATH:${env:WIN_SDK_LIB}/um/x64",
         "/LIBPATH:${env:VCPKG_STATIC}/lib",
-        "/LIBPATH:${workspaceFolder}/lib/msvc",        // 库文件（仅客户端需要的）
         "jsoncpp.lib",           // JSON 解析
         "kernel32.lib",          // Windows API
         "user32.lib",
