@@ -82,12 +82,11 @@ OCRWorker::OCRWorker(int worker_id, const std::string& model_dir, bool use_gpu, 
         if (use_gpu) {
             std::cout << ", GPU Memory: " << total_memory << "MB";
         } else {
-            int total_threads = det_threads + rec_threads + 1; // +1 for worker thread
-            if (enable_cls_) {
-                total_threads += cls_threads;
-            }
+            // 正确计算峰值线程数：det/cls/rec顺序执行，取最大值
+            int peak_threads = std::max({det_threads, cls_threads, rec_threads}) + 1; // +1 for worker main thread
             std::cout << ", Est. RAM Usage: ~" << total_memory << "MB"
-                      << ", CPU Threads: " << total_threads;
+                      << ", Peak Threads: " << peak_threads 
+                      << " (det:" << det_threads << "→cls:" << cls_threads << "→rec:" << rec_threads << "+main:1)";
         }
         std::cout << ", Optimized for: WeChat Mini-Program Screenshots)" << std::endl;
     }
@@ -319,38 +318,59 @@ std::string OCRWorker::getWorkerRecommendation(bool use_gpu, bool enable_cls) {
         }
     } else {
         oss << "  - Mode: CPU (线程数限制)\n";
-        int threads_per_worker = enable_cls ? 6 : 5; // det(2) + rec(2) + cls(1) + main(1)
         
-        // 优化Worker数量计算：考虑I/O等待和线程调度效率
-        int conservative_workers = std::max(1, static_cast<int>(logical_cores * 0.5 / threads_per_worker));
-        int recommended_workers = std::max(1, static_cast<int>(logical_cores * 0.8 / threads_per_worker));
-        int aggressive_workers = std::max(2, static_cast<int>(logical_cores * 1.2 / threads_per_worker));
+        // 正确的线程占用分析：det/cls/rec是顺序执行，不是并行
+        int det_threads = 2;  // 检测器线程数
+        int cls_threads = enable_cls ? 1 : 0;  // 分类器线程数（如果启用）
+        int rec_threads = 2;  // 识别器线程数
+        int main_thread = 1;  // 主协调线程
         
-        // 对于常见的4核8线程CPU，给出更合理的建议
+        // 实际峰值线程数：det/cls/rec顺序执行，取最大值 + 主线程
+        int peak_threads_per_worker = std::max({det_threads, cls_threads, rec_threads}) + main_thread;
+        
+        // 基于峰值线程数计算Worker数量
+        int conservative_workers = std::max(1, static_cast<int>(logical_cores * 0.6 / peak_threads_per_worker));
+        int recommended_workers = std::max(1, static_cast<int>(logical_cores * 0.8 / peak_threads_per_worker));
+        int aggressive_workers = std::max(2, static_cast<int>(logical_cores * 1.0 / peak_threads_per_worker));
+        
+        // 对于常见CPU进行特殊优化
         if (logical_cores == 8) {
-            conservative_workers = enable_cls ? 1 : 1;
-            recommended_workers = enable_cls ? 2 : 2;  
-            aggressive_workers = enable_cls ? 3 : 3;
+            // 4核8线程：8÷3=2.67，可以安全开2-3个Worker
+            conservative_workers = 2;
+            recommended_workers = enable_cls ? 2 : 3;  // 无分类器时可以更激进
+            aggressive_workers = 3;
+        } else if (logical_cores == 4) {
+            // 4核4线程：4÷3=1.33，可以开1-2个Worker
+            conservative_workers = 1;
+            recommended_workers = 1;
+            aggressive_workers = 2;
         } else if (logical_cores >= 12) {
             // 12线程以上的CPU可以更激进
-            conservative_workers = std::max(2, conservative_workers);
-            recommended_workers = std::max(3, recommended_workers);
+            conservative_workers = std::max(3, conservative_workers);
+            recommended_workers = std::max(4, recommended_workers);
+            aggressive_workers = std::max(5, aggressive_workers);
+        } else if (logical_cores >= 16) {
+            // 16线程以上的CPU
+            conservative_workers = std::max(4, conservative_workers);
+            recommended_workers = std::max(6, recommended_workers);
+            aggressive_workers = std::max(8, aggressive_workers);
         }
         
         oss << "CPU Mode Recommendations:\n";
-        oss << "  - Threads per Worker: " << threads_per_worker << " (det:2, rec:2";
-        if (enable_cls) oss << ", cls:1";
-        oss << ", main:1)\n";
+        oss << "  - 线程占用分析: det(" << det_threads << ") → cls(" << cls_threads 
+            << ") → rec(" << rec_threads << ") + main(" << main_thread << ")\n";
+        oss << "  - 峰值并发线程: " << peak_threads_per_worker << " threads/worker (顺序执行，非并行)\n";
         oss << "  - Memory per Worker: ~" << (enable_cls ? 170 : 150) << "MB RAM\n";
-        oss << "  - Conservative: " << conservative_workers << " Workers (低负载稳定)\n";
-        oss << "  - Recommended: " << recommended_workers << " Workers (平衡性能)\n";
-        oss << "  - Aggressive: " << aggressive_workers << " Workers (高吞吐量)\n";
+        oss << "  - Conservative: " << conservative_workers << " Workers (稳定运行)\n";
+        oss << "  - Recommended: " << recommended_workers << " Workers (推荐配置)\n";
+        oss << "  - Aggressive: " << aggressive_workers << " Workers (最大吞吐)\n";
         
-        // 添加具体的使用建议
-        oss << "\n  使用建议:\n";
-        oss << "  - 开发测试: " << conservative_workers << " Worker\n";
-        oss << "  - 生产环境: " << recommended_workers << " Workers\n";
-        oss << "  - 高峰期: " << aggressive_workers << " Workers (需监控CPU使用率)\n";
+        // 添加线程计算说明
+        oss << "\n  线程计算说明:\n";
+        oss << "  - OCR流程: 检测→分类→识别 (顺序执行)\n";
+        oss << "  - 实际并发: max(det,cls,rec) + main = " << peak_threads_per_worker << " threads\n";
+        oss << "  - 总线程占用: " << recommended_workers << " workers × " 
+            << peak_threads_per_worker << " = " << (recommended_workers * peak_threads_per_worker) << " threads\n";
     }
     
     oss << "\nNote: 以上基于逻辑核心数(" << logical_cores << ")计算，包含超线程/SMT";
