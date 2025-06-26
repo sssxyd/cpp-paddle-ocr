@@ -17,12 +17,11 @@
       ],
       "console": "integratedTerminal",  
       "preLaunchTask": "build-debug"
-    },
-    {
+    },    {
       "name": "Debug OCR Tests",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/tests/build/test_ocr_worker_debug.exe",
+      "program": "${workspaceFolder}/tests/build/test_ocr_worker.exe",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/tests/build",
@@ -34,12 +33,12 @@
       ],
       "console": "integratedTerminal",
       "preLaunchTask": "build-ocr-tests-debug"
-    },
+    },    
     {
       "name": "Debug Single Test (BasicOCRProcessing)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/tests/build/test_ocr_worker_debug.exe",
+      "program": "${workspaceFolder}/tests/build/test_ocr_worker.exe",
       "args": ["BasicOCRProcessing"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/tests/build",
@@ -56,7 +55,7 @@
       "name": "Debug Single Test (ConstructorCPU)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/tests/build/test_ocr_worker_debug.exe",
+      "program": "${workspaceFolder}/tests/build/test_ocr_worker.exe",
       "args": ["ConstructorCPU"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/tests/build",

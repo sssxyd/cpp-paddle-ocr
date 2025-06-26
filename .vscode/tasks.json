@@ -91,7 +91,7 @@
         "libpng16.lib",
         "tiff.lib",
         "lzma.lib",
-        "turbojpeg.lib",       // 或 jpeg.lib
+        "turbojpeg.lib",       
         
         // Windows 系统库
         "kernel32.lib",
@@ -195,38 +195,42 @@
         "cwd": "${workspaceFolder}"
       },
       "group": "build"
-    },      {
+    },      
+    {
       "label": "build-ocr-tests",
       "type": "shell",
       "command": "powershell",
       "args": [
         "-ExecutionPolicy",
-        "Bypass",        "-File",
+        "Bypass",        
+        "-File",
         "${workspaceFolder}\\tests\\build_tests.bat"
-      ],      "options": {
+      ],      
+      "options": {
         "cwd": "${workspaceFolder}\\tests"
       },
       "group": "build",
       "problemMatcher": "$msCompile"
-    },
-    {
+    },      {
       "label": "build-ocr-tests-debug",
       "type": "shell",
-      "command": "cl.exe",
-      "args": [
+      "command": "cl.exe",      "args": [
         "/std:c++20",
         "/utf-8",
         "/EHsc",
         "/TP",
-        "/MTd",              // Debug 静态运行时库
+        "/MT",               // Release 静态运行时库 (避免调试符号冲突)
         "/W3",
         "/Od",               // Debug 优化关闭
         "/Zi",               // 调试信息
-        "/DEBUG",            // Debug 宏定义
+        "/FS",               // 允许多个编译器实例写入同一PDB文件
+        "/DNDEBUG",          // Release 宏定义 (与链接库匹配)
         "/DWIN32",
         "/D_WINDOWS",
         "/D_CRT_SECURE_NO_WARNINGS",
         "/DBASE64_STATIC_DEFINE",
+        
+        // 源文件
         "${workspaceFolder}\\tests\\test_ocr_worker.cpp",
         "${workspaceFolder}\\src\\ocr_worker.cpp",
         "${workspaceFolder}\\src\\ocr_det.cpp",
@@ -236,30 +240,36 @@
         "${workspaceFolder}\\src\\postprocess_op.cpp",
         "${workspaceFolder}\\src\\preprocess_op.cpp",
         "${workspaceFolder}\\src\\utility.cpp",
-        "/I",
-        "${workspaceFolder}\\include",
-        "/I",
-        "${env:MSVC_INCLUDE}",
-        "/I",
-        "${env:WIN_SDK_INCLUDE}\\ucrt",
-        "/I",
-        "${env:WIN_SDK_INCLUDE}\\shared",
-        "/I",
-        "${env:WIN_SDK_INCLUDE}\\um",
-        "/I",
-        "${env:VCPKG_STATIC}\\include",
-        "/I",
-        "${env:VCPKG_STATIC}\\include\\opencv4",        "/Fe:${workspaceFolder}\\tests\\build\\test_ocr_worker_debug.exe",
+
+        // 头文件路径
+        "/I", "${workspaceFolder}\\include",
+        "/I", "${env:MSVC_INCLUDE}",
+        "/I", "${env:WIN_SDK_INCLUDE}\\ucrt",
+        "/I", "${env:WIN_SDK_INCLUDE}\\shared",
+        "/I", "${env:WIN_SDK_INCLUDE}\\um",
+        "/I", "${env:VCPKG_STATIC}\\include",
+        "/I", "${env:VCPKG_STATIC}\\include\\opencv4",
+
+        // 输出文件设置
+        "/Fe:${workspaceFolder}\\tests\\build\\test_ocr_worker.exe",
         "/Fo:${workspaceFolder}\\tests\\build\\",
-        "/Fd:${workspaceFolder}\\tests\\build\\test_ocr_worker_debug.pdb",
+        "/Fd:${workspaceFolder}\\tests\\build\\test_ocr_worker.pdb",
+          // 链接选项
         "/link",
         "/DEBUG",
-        "/PDB:${workspaceFolder}\\tests\\build\\test_ocr_worker_debug.pdb",
+        "/PDB:${workspaceFolder}\\tests\\build\\test_ocr_worker.pdb",
+        "/NODEFAULTLIB:msvcprtd.lib",
+        "/NODEFAULTLIB:msvcrtd.lib",
+        "/NODEFAULTLIB:libcmtd.lib",
+        
+        // 库文件路径
         "/LIBPATH:${env:MSVC_LIB}",
         "/LIBPATH:${env:WIN_SDK_LIB}\\ucrt\\x64",
         "/LIBPATH:${env:WIN_SDK_LIB}\\um\\x64",
         "/LIBPATH:${env:VCPKG_STATIC}\\lib",
         "/LIBPATH:${workspaceFolder}\\lib\\msvc",
+
+        // 链接库
         "paddle_inference.lib",
         "opencv_highgui4.lib",
         "opencv_imgcodecs4.lib",
@@ -268,6 +278,16 @@
         "gflags_static.lib",
         "jsoncpp.lib",
         "base64.lib",
+        "libwebp.lib",
+        "libwebpdemux.lib",
+        "libwebpmux.lib",
+        "libwebpdecoder.lib",
+        "libsharpyuv.lib",
+        "zlib.lib",
+        "libpng16.lib",
+        "tiff.lib",
+        "lzma.lib",
+        "turbojpeg.lib",
         "kernel32.lib",
         "user32.lib",
         "gdi32.lib",
@@ -283,8 +303,14 @@
         "cwd": "${workspaceFolder}"
       },
       "group": "build",
-      "dependsOn": "copy-build-dependencies",
-      "problemMatcher": "$msCompile"
+      "dependsOn": "copy-test-dependencies",
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
     },
     {
       "label": "run-ocr-tests",
@@ -310,6 +336,23 @@
         "cwd": "${workspaceFolder}"
       },
       "group": "build"
+    },
+    {
+      "label": "copy-test-dependencies",
+      "type": "shell",
+      "command": "powershell",
+      "args": [        
+        "-ExecutionPolicy", "Bypass",
+        "-Command",
+        "Write-Host 'Copying dependencies to tests/build directory...'; if (!(Test-Path 'tests\\build')) { New-Item -ItemType Directory -Path 'tests\\build' -Force | Out-Null }; if (Test-Path 'bin\\msvc\\*.dll') { Copy-Item -Path 'bin\\msvc\\*.dll' -Destination 'tests\\build\\' -Force; Write-Host 'DLL files from bin/msvc copied successfully' } else { Write-Host 'No DLL files found in bin/msvc' }; if (Test-Path 'C:\\Windows\\System32\\vcomp140.dll') { Copy-Item -Path 'C:\\Windows\\System32\\vcomp140.dll' -Destination 'tests\\build\\' -Force; Write-Host 'vcomp140.dll copied successfully' } else { Write-Host 'vcomp140.dll not found in System32' }; if (Test-Path 'models') { if (!(Test-Path 'tests\\build\\models')) { Copy-Item -Path 'models' -Destination 'tests\\build\\' -Recurse -Force; Write-Host 'Models directory copied successfully' } else { Write-Host 'Models directory already exists, skipping copy' } } else { Write-Host 'Models directory not found' }; if (Test-Path 'images') { if (!(Test-Path 'tests\\build\\images')) { Copy-Item -Path 'images' -Destination 'tests\\build\\' -Recurse -Force; Write-Host 'Images directory copied successfully' } else { Write-Host 'Images directory already exists, skipping copy' } } else { Write-Host 'Images directory not found' }; Write-Host 'Test dependencies copy completed!'"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
     }
   ]
 }

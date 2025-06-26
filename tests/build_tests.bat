@@ -8,7 +8,7 @@ if not exist "build" mkdir build
 cd build
 
 REM 设置编译器选项
-set COMPILER_FLAGS=/std:c++20 /utf-8 /EHsc /TP /MT /W3 /O2 /Zi /DNDEBUG /DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_WARNINGS /DBASE64_STATIC_DEFINE
+set COMPILER_FLAGS=/std:c++20 /utf-8 /EHsc /TP /MT /W3 /O2 /Zi /FS /DNDEBUG /DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_WARNINGS /DBASE64_STATIC_DEFINE
 
 REM 设置包含目录
 set INCLUDE_DIRS=/I "%~dp0..\include" /I "%MSVC_INCLUDE%" /I "%WIN_SDK_INCLUDE%\ucrt" /I "%WIN_SDK_INCLUDE%\shared" /I "%WIN_SDK_INCLUDE%\um" /I "%VCPKG_STATIC%\include" /I "%VCPKG_STATIC%\include\opencv4"
@@ -21,7 +21,7 @@ REM 设置库路径
 set LIB_PATHS=/LIBPATH:"%MSVC_LIB%" /LIBPATH:"%WIN_SDK_LIB%\ucrt\x64" /LIBPATH:"%WIN_SDK_LIB%\um\x64" /LIBPATH:"%VCPKG_STATIC%\lib" /LIBPATH:"%~dp0..\lib\msvc"
 
 REM 设置链接库
-set LIBRARIES=gtest.lib paddle_inference.lib opencv_highgui4.lib opencv_imgcodecs4.lib opencv_imgproc4.lib opencv_core4.lib gflags_static.lib jsoncpp.lib base64.lib kernel32.lib user32.lib gdi32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib shlwapi.lib
+set LIBRARIES=paddle_inference.lib opencv_highgui4.lib opencv_imgcodecs4.lib opencv_imgproc4.lib opencv_core4.lib gflags_static.lib jsoncpp.lib base64.lib libwebp.lib libwebpdemux.lib libwebpmux.lib libwebpdecoder.lib libsharpyuv.lib zlib.lib libpng16.lib tiff.lib lzma.lib turbojpeg.lib kernel32.lib user32.lib gdi32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib shlwapi.lib
 
 REM 编译
 echo Compiling simple test executable...
