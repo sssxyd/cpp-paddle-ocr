@@ -214,6 +214,20 @@ public:
                 SimpleTest::printLine("  - " + text.asString());
             }
         }
+
+        auto request2 = std::make_shared<OCRRequest>(10022, real_image);
+        auto future2 = request2->result_promise.get_future();
+        
+        worker_->addRequest(request2);
+        
+        status = future2.wait_for(std::chrono::seconds(30));
+        SimpleTest::assertTrue(status == std::future_status::ready, "Real image processing should complete");
+        
+        std::string result_json2 = future2.get();
+        Json::Value result2 = parseJsonResult(result_json2);
+        
+        // 打印人类可读的JSON结果
+        SimpleTest::printJsonResult(result2, "真实图像处理结果2");
         
         worker_->stop();
     }
@@ -440,6 +454,117 @@ public:
     }
     
     /**
+     * @brief 冷启动 vs 热启动性能测试
+     * 专门测试首次识别和后续识别的性能差异
+     */
+    void testColdVsWarmStartup() {
+        SimpleTest::printLine("\n=== 冷启动 vs 热启动性能分析 ===");
+        
+        // 加载测试图像
+        cv::Mat test_img = loadTestImageFromFile("card-jd.jpg");
+        if (test_img.empty()) {
+            test_img = createTestImage();
+        }
+        
+        SimpleTest::printLine("图像尺寸: " + std::to_string(test_img.cols) + "x" + std::to_string(test_img.rows));
+        
+        // 测试冷启动性能
+        SimpleTest::printLine("\n--- 冷启动测试 (新Worker) ---");
+        auto cold_worker = std::make_unique<OCRWorker>(5, model_dir_, false, 0, false);
+        cold_worker->start();
+        
+        auto cold_request = std::make_shared<OCRRequest>(5001, test_img);
+        auto cold_future = cold_request->result_promise.get_future();
+        
+        auto cold_start_time = std::chrono::high_resolution_clock::now();
+        cold_worker->addRequest(cold_request);
+        
+        auto cold_status = cold_future.wait_for(std::chrono::seconds(30));
+        auto cold_end_time = std::chrono::high_resolution_clock::now();
+        
+        SimpleTest::assertTrue(cold_status == std::future_status::ready, "Cold start test should complete");
+        
+        std::string cold_result_json = cold_future.get();
+        Json::Value cold_result = parseJsonResult(cold_result_json);
+        double cold_time = cold_result["processing_time_ms"].asDouble();
+        auto cold_wall_time = std::chrono::duration<double, std::milli>(cold_end_time - cold_start_time).count();
+        
+        SimpleTest::printLine("冷启动结果:");
+        SimpleTest::printLine("  OCR处理时间: " + std::to_string(cold_time) + " ms");
+        SimpleTest::printLine("  总耗时(含队列): " + std::to_string(cold_wall_time) + " ms");
+        
+        // 测试热启动性能（同一个Worker连续处理）
+        SimpleTest::printLine("\n--- 热启动测试 (同一Worker连续处理) ---");
+        const int warm_tests = 3;
+        std::vector<double> warm_times;
+        
+        for (int i = 0; i < warm_tests; i++) {
+            auto warm_request = std::make_shared<OCRRequest>(5002 + i, test_img);
+            auto warm_future = warm_request->result_promise.get_future();
+            
+            auto warm_start_time = std::chrono::high_resolution_clock::now();
+            cold_worker->addRequest(warm_request);  // 复用同一个worker
+            
+            auto warm_status = warm_future.wait_for(std::chrono::seconds(30));
+            auto warm_end_time = std::chrono::high_resolution_clock::now();
+            
+            SimpleTest::assertTrue(warm_status == std::future_status::ready, "Warm start test should complete");
+            
+            std::string warm_result_json = warm_future.get();
+            Json::Value warm_result = parseJsonResult(warm_result_json);
+            double warm_time = warm_result["processing_time_ms"].asDouble();
+            auto warm_wall_time = std::chrono::duration<double, std::milli>(warm_end_time - warm_start_time).count();
+            
+            warm_times.push_back(warm_time);
+            
+            SimpleTest::printLine("第" + std::to_string(i+1) + "次热启动:");
+            SimpleTest::printLine("  OCR处理时间: " + std::to_string(warm_time) + " ms");
+            SimpleTest::printLine("  总耗时(含队列): " + std::to_string(warm_wall_time) + " ms");
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        
+        // 计算平均热启动时间
+        double avg_warm_time = 0.0;
+        for (double time : warm_times) {
+            avg_warm_time += time;
+        }
+        avg_warm_time /= warm_times.size();
+        
+        // 性能分析
+        SimpleTest::printLine("\n--- 性能对比分析 ---");
+        SimpleTest::printLine("冷启动时间: " + std::to_string(cold_time) + " ms");
+        SimpleTest::printLine("热启动平均时间: " + std::to_string(avg_warm_time) + " ms");
+        
+        double speedup = cold_time / avg_warm_time;
+        double overhead = cold_time - avg_warm_time;
+        double overhead_percent = (overhead / cold_time) * 100.0;
+        
+        SimpleTest::printLine("性能提升: " + std::to_string(speedup) + "x");
+        SimpleTest::printLine("冷启动开销: " + std::to_string(overhead) + " ms (" + 
+                            std::to_string(overhead_percent) + "%)");
+        
+        // 分析冷启动开销的原因
+        SimpleTest::printLine("\n--- 冷启动开销分析 ---");
+        if (overhead_percent > 50) {
+            SimpleTest::printLine("🔴 冷启动开销很大 (>" + std::to_string(overhead_percent) + "%)");
+            SimpleTest::printLine("主要原因: 模型加载、GPU显存分配、缓存预热");
+        } else if (overhead_percent > 30) {
+            SimpleTest::printLine("🟡 冷启动开销适中 (" + std::to_string(overhead_percent) + "%)");
+            SimpleTest::printLine("主要原因: 内存分配、缓存预热");
+        } else {
+            SimpleTest::printLine("🟢 冷启动开销较小 (" + std::to_string(overhead_percent) + "%)");
+        }
+        
+        SimpleTest::printLine("\n建议:");
+        SimpleTest::printLine("- 生产环境使用Worker池，避免频繁创建Worker");
+        SimpleTest::printLine("- 应用启动时进行预热处理");
+        SimpleTest::printLine("- 使用Keep-Alive机制保持Worker热状态");
+        
+        cold_worker->stop();
+    }
+    
+    /**
      * @brief 运行单个测试 - 调试时很有用
      */
     void runSingleTest(const std::string& testName) {
@@ -472,9 +597,11 @@ public:
                 testWithoutTextClassification();
             } else if (testName == "PerformanceBenchmark") {
                 testPerformanceBenchmark();
+            } else if (testName == "ColdVsWarmStartup") {
+                testColdVsWarmStartup();
             } else {
                 SimpleTest::printError("未知测试: " + testName);
-                SimpleTest::printError("可用测试: ConstructorCPU, StartStop, MultipleStart, BasicOCRProcessing, RealImageProcessing, EmptyImageProcessing, ConcurrentProcessing, IdleState, InvalidModelPath, WithTextClassification, WithoutTextClassification, PerformanceBenchmark");
+                SimpleTest::printError("可用测试: ConstructorCPU, StartStop, MultipleStart, BasicOCRProcessing, RealImageProcessing, EmptyImageProcessing, ConcurrentProcessing, IdleState, InvalidModelPath, WithTextClassification, WithoutTextClassification, PerformanceBenchmark, ColdVsWarmStartup");
                 return;
             }
             
@@ -544,6 +671,14 @@ public:
             testWithoutTextClassification();
             tearDown();
             
+            setUp();
+            testPerformanceBenchmark();
+            tearDown();
+            
+            setUp();
+            testColdVsWarmStartup();
+            tearDown();
+            
             SimpleTest::printLine("\n=== 所有测试通过 ===");
         }
         catch (const std::exception& e) {
@@ -575,7 +710,7 @@ int main(int argc, char* argv[]) {
     } else {
         SimpleTest::printLine("运行所有测试...");
         SimpleTest::printLine("提示: 使用 'test.exe <TestName>' 运行特定测试进行调试");
-        SimpleTest::printLine("可用测试: ConstructorCPU, StartStop, BasicOCRProcessing, WithTextClassification, WithoutTextClassification, PerformanceBenchmark, SystemInfo, 等等");
+        SimpleTest::printLine("可用测试: ConstructorCPU, StartStop, BasicOCRProcessing, WithTextClassification, WithoutTextClassification, PerformanceBenchmark, ColdVsWarmStartup, SystemInfo, 等等");
         test.runAllTests();
     }
     

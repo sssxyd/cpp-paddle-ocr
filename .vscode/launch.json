@@ -52,11 +52,11 @@
       "preLaunchTask": "build-ocr-tests-debug"
     },
     {
-      "name": "Debug Single Test (ConstructorCPU)",
+      "name": "Debug Single Test (ColdVsWarmStartup)",
       "type": "cppvsdbg",
       "request": "launch",
       "program": "${workspaceFolder}/tests/build/test_ocr_worker.exe",
-      "args": ["ConstructorCPU"],
+      "args": ["ColdVsWarmStartup"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/tests/build",
       "environment": [
