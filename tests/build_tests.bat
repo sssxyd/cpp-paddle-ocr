@@ -11,10 +11,10 @@ REM 设置编译器选项
 set COMPILER_FLAGS=/std:c++20 /utf-8 /EHsc /TP /MT /W3 /O2 /Zi /FS /DNDEBUG /DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_WARNINGS /DBASE64_STATIC_DEFINE
 
 REM 设置包含目录
-set INCLUDE_DIRS=/I "%~dp0..\include" /I "%MSVC_INCLUDE%" /I "%WIN_SDK_INCLUDE%\ucrt" /I "%WIN_SDK_INCLUDE%\shared" /I "%WIN_SDK_INCLUDE%\um" /I "%VCPKG_STATIC%\include" /I "%VCPKG_STATIC%\include\opencv4"
+set INCLUDE_DIRS=/I "%~dp0..\include" /I "%~dp0" /I "%MSVC_INCLUDE%" /I "%WIN_SDK_INCLUDE%\ucrt" /I "%WIN_SDK_INCLUDE%\shared" /I "%WIN_SDK_INCLUDE%\um" /I "%VCPKG_STATIC%\include" /I "%VCPKG_STATIC%\include\opencv4"
 
 REM 设置源文件
-set TEST_SOURCES="%~dp0test_ocr_worker.cpp"
+set TEST_SOURCES="%~dp0test_ocr_worker.cpp" "%~dp0simple_test.cpp"
 set PROJECT_SOURCES="%~dp0..\src\ocr_worker.cpp" "%~dp0..\src\ocr_det.cpp" "%~dp0..\src\ocr_rec.cpp" "%~dp0..\src\ocr_cls.cpp" "%~dp0..\src\clipper.cpp" "%~dp0..\src\postprocess_op.cpp" "%~dp0..\src\preprocess_op.cpp" "%~dp0..\src\utility.cpp"
 
 REM 设置库路径

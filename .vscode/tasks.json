@@ -232,6 +232,7 @@
         
         // 源文件
         "${workspaceFolder}\\tests\\test_ocr_worker.cpp",
+        "${workspaceFolder}\\tests\\simple_test.cpp",
         "${workspaceFolder}\\src\\ocr_worker.cpp",
         "${workspaceFolder}\\src\\ocr_det.cpp",
         "${workspaceFolder}\\src\\ocr_rec.cpp",
@@ -243,6 +244,7 @@
 
         // 头文件路径
         "/I", "${workspaceFolder}\\include",
+        "/I", "${workspaceFolder}\\tests",
         "/I", "${env:MSVC_INCLUDE}",
         "/I", "${env:WIN_SDK_INCLUDE}\\ucrt",
         "/I", "${env:WIN_SDK_INCLUDE}\\shared",
