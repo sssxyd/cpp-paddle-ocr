@@ -48,7 +48,7 @@ struct OCRResult {
  */
 class OCRWorker {
 public:
-    OCRWorker(int worker_id, const std::string& model_dir, bool use_gpu, int gpu_id = 0);
+    OCRWorker(int worker_id, const std::string& model_dir, bool use_gpu, int gpu_id = 0, bool enable_cls = false);
     virtual ~OCRWorker();
     
     void start();
@@ -57,6 +57,14 @@ public:
     bool isIdle() const { return is_idle_; }
     int getWorkerId() const { return worker_id_; }
     
+    /**
+     * @brief 获取系统CPU信息和建议的Worker数量
+     * @param use_gpu 是否使用GPU模式
+     * @param enable_cls 是否启用分类器
+     * @return 包含系统信息和建议的字符串
+     */
+    static std::string getWorkerRecommendation(bool use_gpu, bool enable_cls = false);
+    
 private:
     void workerLoop();
     OCRResult processRequest(const OCRRequest& request);
@@ -64,6 +72,7 @@ private:
     int worker_id_;
     bool use_gpu_;
     int gpu_id_;
+    bool enable_cls_;  // 是否启用文本方向分类
     std::atomic<bool> running_;
     std::atomic<bool> is_idle_;
     

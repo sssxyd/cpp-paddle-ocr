@@ -102,6 +102,7 @@ void SimpleTest::printJsonResult(const Json::Value& json_value, const std::strin
     builder["indentation"] = "  "; // 使用2个空格缩进
     builder["precision"] = 6;
     builder["precisionType"] = "significant";
+    builder["emitUTF8"] = true; // 直接输出UTF-8，不转义Unicode字符
     
     std::ostringstream oss;
     std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
@@ -137,6 +138,7 @@ void SimpleTest::printJsonResult(const Json::Value& json_value, const std::strin
     builder["indentation"] = "  "; // 使用2个空格缩进
     builder["precision"] = 6;
     builder["precisionType"] = "significant";
+    builder["emitUTF8"] = true; // 直接输出UTF-8，不转义Unicode字符
     
     std::ostringstream oss;
     std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
