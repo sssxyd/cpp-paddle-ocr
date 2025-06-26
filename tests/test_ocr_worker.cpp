@@ -78,7 +78,7 @@ public:
     }
     
     void testConstructorCPU() {
-        std::cout << "\n=== Testing OCRWorker Constructor (CPU) ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试 OCRWorker 构造函数 (CPU) ===");
         
         SimpleTest::expectNoThrow([this]() {
             worker_ = std::make_unique<OCRWorker>(1, model_dir_, false, 0);
@@ -90,7 +90,7 @@ public:
     }
     
     void testStartStop() {
-        std::cout << "\n=== Testing OCRWorker Start/Stop ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试 OCRWorker 启动/停止 ===");
         
         worker_ = std::make_unique<OCRWorker>(1, model_dir_, false, 0);
         
@@ -110,7 +110,7 @@ public:
     }
     
     void testMultipleStart() {
-        std::cout << "\n=== Testing Multiple Start Calls ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试多次启动调用 ===");
         
         worker_ = std::make_unique<OCRWorker>(1, model_dir_, false, 0);
         
@@ -123,7 +123,7 @@ public:
     }
     
     void testBasicOCRProcessing() {
-        std::cout << "\n=== Testing Basic OCR Processing ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试基本 OCR 处理 ===");
         
         worker_ = std::make_unique<OCRWorker>(1, model_dir_, false, 0);
         worker_->start();
@@ -140,6 +140,10 @@ public:
         SimpleTest::assertTrue(!result_json.empty(), "Result JSON should not be empty");
         
         Json::Value result = parseJsonResult(result_json);
+        
+        // 打印人类可读的JSON结果
+        SimpleTest::printJsonResult(result, "基本OCR处理结果");
+        
         SimpleTest::assertEquals(1001, result["request_id"].asInt(), "Request ID should match");
         SimpleTest::assertEquals(1, result["worker_id"].asInt(), "Worker ID should match");
         SimpleTest::assertTrue(result["success"].asBool(), "OCR should succeed");
@@ -149,12 +153,12 @@ public:
     }
     
     void testRealImageProcessing() {
-        std::cout << "\n=== Testing Real Image Processing ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试真实图像处理 ===");
         
         worker_ = std::make_unique<OCRWorker>(1, model_dir_, false, 0);
         worker_->start();
         
-        cv::Mat real_image = loadTestImageFromFile("title.jpg");
+        cv::Mat real_image = loadTestImageFromFile("card-jd.jpg");
         
         auto request = std::make_shared<OCRRequest>(1002, real_image);
         auto future = request->result_promise.get_future();
@@ -167,6 +171,9 @@ public:
         std::string result_json = future.get();
         Json::Value result = parseJsonResult(result_json);
         
+        // 打印人类可读的JSON结果
+        SimpleTest::printJsonResult(result, "真实图像处理结果");
+        
         SimpleTest::assertEquals(1002, result["request_id"].asInt(), "Request ID should match");
         SimpleTest::assertTrue(result["success"].asBool(), "Real image OCR should succeed");
         
@@ -174,10 +181,10 @@ public:
             SimpleTest::assertTrue(result.isMember("texts"), "Result should contain texts");
             SimpleTest::assertTrue(result.isMember("boxes"), "Result should contain boxes");
             
-            std::cout << "OCR Results:" << std::endl;
+            SimpleTest::printLine("OCR 识别结果:");
             const Json::Value& texts = result["texts"];
             for (const auto& text : texts) {
-                std::cout << "  - " << text.asString() << std::endl;
+                SimpleTest::printLine("  - " + text.asString());
             }
         }
         
@@ -185,7 +192,7 @@ public:
     }
     
     void testEmptyImageProcessing() {
-        std::cout << "\n=== Testing Empty Image Processing ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试空图像处理 ===");
         
         worker_ = std::make_unique<OCRWorker>(1, model_dir_, false, 0);
         worker_->start();
@@ -201,6 +208,9 @@ public:
         std::string result_json = future.get();
         Json::Value result = parseJsonResult(result_json);
         
+        // 打印人类可读的JSON结果
+        SimpleTest::printJsonResult(result, "空图像处理结果");
+        
         SimpleTest::assertEquals(1003, result["request_id"].asInt(), "Request ID should match");
         SimpleTest::assertFalse(result["success"].asBool(), "Empty image should fail");
         SimpleTest::assertTrue(result.isMember("error"), "Result should contain error message");
@@ -209,7 +219,7 @@ public:
     }
     
     void testConcurrentProcessing() {
-        std::cout << "\n=== Testing Concurrent Processing ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试并发处理 ===");
         
         worker_ = std::make_unique<OCRWorker>(1, model_dir_, false, 0);
         worker_->start();
@@ -245,7 +255,7 @@ public:
     }
     
     void testIdleState() {
-        std::cout << "\n=== Testing Idle State ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试空闲状态 ===");
         
         worker_ = std::make_unique<OCRWorker>(1, model_dir_, false, 0);
         
@@ -267,7 +277,7 @@ public:
     }
     
     void testInvalidModelPath() {
-        std::cout << "\n=== Testing Invalid Model Path ===" << std::endl;
+        SimpleTest::printLine("\n=== 测试无效模型路径 ===");
         
         SimpleTest::expectThrow([this]() {
             auto invalid_worker = std::make_unique<OCRWorker>(1, "invalid_model_path", false, 0);
@@ -278,7 +288,7 @@ public:
      * @brief 运行单个测试 - 调试时很有用
      */
     void runSingleTest(const std::string& testName) {
-        std::cout << "\n=== Running Single Test: " << testName << " ===" << std::endl;
+        SimpleTest::printLine("\n=== 运行单个测试: " + testName + " ===");
         
         try {
             setUp();
@@ -302,28 +312,28 @@ public:
             } else if (testName == "InvalidModelPath") {
                 testInvalidModelPath();
             } else {
-                std::cerr << "Unknown test: " << testName << std::endl;
-                std::cerr << "Available tests: ConstructorCPU, StartStop, MultipleStart, BasicOCRProcessing, RealImageProcessing, EmptyImageProcessing, ConcurrentProcessing, IdleState, InvalidModelPath" << std::endl;
+                SimpleTest::printError("未知测试: " + testName);
+                SimpleTest::printError("可用测试: ConstructorCPU, StartStop, MultipleStart, BasicOCRProcessing, RealImageProcessing, EmptyImageProcessing, ConcurrentProcessing, IdleState, InvalidModelPath");
                 return;
             }
             
             tearDown();
-            std::cout << "=== Test " << testName << " PASSED ===" << std::endl;
+            SimpleTest::printLine("=== 测试 " + testName + " 通过 ===");
         }
         catch (const std::exception& e) {
-            std::cerr << "=== Test " << testName << " FAILED: " << e.what() << " ===" << std::endl;
+            SimpleTest::printError("=== 测试 " + testName + " 失败: " + std::string(e.what()) + " ===");
             tearDown();
             exit(1);
         }
     }
 
     void runAllTests() {
-        std::cout << "Starting OCRWorker tests..." << std::endl;
+        SimpleTest::printLine("开始运行 OCRWorker 测试...");
         
         // 检查必要文件是否存在 - 简单的方式
         std::ifstream models_check("models/det/inference.pdmodel");
         if (!models_check.good()) {
-            std::cerr << "Warning: models directory or model files not found. Some tests may fail." << std::endl;
+            SimpleTest::printError("警告: 未找到 models 目录或模型文件. 某些测试可能会失败.");
         }
         models_check.close();
         
@@ -365,10 +375,10 @@ public:
             testInvalidModelPath();
             tearDown();
             
-            std::cout << "\n=== ALL TESTS PASSED ===" << std::endl;
+            SimpleTest::printLine("\n=== 所有测试通过 ===");
         }
         catch (const std::exception& e) {
-            std::cerr << "Test failed with exception: " << e.what() << std::endl;
+            SimpleTest::printError("测试失败，异常: " + std::string(e.what()));
             tearDown();
             exit(1);
         }
@@ -376,17 +386,20 @@ public:
 };
 
 int main(int argc, char* argv[]) {
+    // 设置Windows控制台UTF-8支持
+    SimpleTest::setupConsole();
+    
     OCRWorkerTest test;
     
     // 支持命令行参数来运行特定测试 - 调试时很有用！
     if (argc > 1) {
         std::string testName = argv[1];
-        std::cout << "Running specific test: " << testName << std::endl;
+        SimpleTest::printLine("运行指定测试: " + testName);
         test.runSingleTest(testName);
     } else {
-        std::cout << "Running all tests..." << std::endl;
-        std::cout << "Tip: Use 'test.exe <TestName>' to run a specific test for debugging" << std::endl;
-        std::cout << "Available tests: ConstructorCPU, StartStop, BasicOCRProcessing, etc." << std::endl;
+        SimpleTest::printLine("运行所有测试...");
+        SimpleTest::printLine("提示: 使用 'test.exe <TestName>' 运行特定测试进行调试");
+        SimpleTest::printLine("可用测试: ConstructorCPU, StartStop, BasicOCRProcessing, 等等");
         test.runAllTests();
     }
     

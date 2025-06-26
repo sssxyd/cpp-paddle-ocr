@@ -35,11 +35,11 @@
       "preLaunchTask": "build-ocr-tests-debug"
     },    
     {
-      "name": "Debug Single Test (BasicOCRProcessing)",
+      "name": "Debug Single Test (RealImageProcessing)",
       "type": "cppvsdbg",
       "request": "launch",
       "program": "${workspaceFolder}/tests/build/test_ocr_worker.exe",
-      "args": ["BasicOCRProcessing"],
+      "args": ["RealImageProcessing"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/tests/build",
       "environment": [

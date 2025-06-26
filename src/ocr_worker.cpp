@@ -203,8 +203,8 @@ OCRResult OCRWorker::processRequest(const OCRRequest& request) {
         }
         
         // 文本方向分类
-        std::vector<int> cls_labels;
-        std::vector<float> cls_scores;
+        std::vector<int> cls_labels(text_images.size());
+        std::vector<float> cls_scores(text_images.size());
         std::vector<double> cls_times;
         classifier_->Run(text_images, cls_labels, cls_scores, cls_times);
         
@@ -216,8 +216,8 @@ OCRResult OCRWorker::processRequest(const OCRRequest& request) {
         }
         
         // 文本识别
-        std::vector<std::string> rec_texts;
-        std::vector<float> rec_scores;
+        std::vector<std::string> rec_texts(text_images.size());
+        std::vector<float> rec_scores(text_images.size());
         std::vector<double> rec_times;
         recognizer_->Run(text_images, rec_texts, rec_scores, rec_times);
         
