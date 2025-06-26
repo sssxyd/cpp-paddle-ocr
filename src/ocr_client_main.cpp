@@ -44,53 +44,12 @@ void printUsage() {
     std::wcout << L"  --timeout <ms>        连接超时时间 (默认: 5000ms)\n";
     std::wcout << L"  --status              获取服务状态信息\n";
     std::wcout << L"  --shutdown            优雅关闭OCR服务\n";
-    std::wcout << L"  --shutdown-event <name>  通过指定事件名称关闭服务\n";
     std::wcout << L"  --help                显示此帮助信息\n";
     std::wcout << L"\n示例:\n";
     std::wcout << L"  ocr_client image.jpg\n";
     std::wcout << L"  ocr_client --status\n";
     std::wcout << L"  ocr_client --shutdown\n";
-    std::wcout << L"  ocr_client --shutdown-event Global\\\\OCRServiceShutdown\n";
-    std::wcout << L"  ocr_client --pipe-name \\\\.\\pipe\\my_ocr image.jpg\n";
-}
-
-// 通过命名事件关闭服务
-bool shutdownServiceViaEvent(const std::string& event_name) {
-    std::wcout << L"尝试通过事件关闭服务: " << std::wstring(event_name.begin(), event_name.end()) << std::endl;
-    
-    // 尝试打开现有的事件
-    HANDLE hEvent = OpenEventA(EVENT_MODIFY_STATE, FALSE, event_name.c_str());
-    if (hEvent == NULL) {
-        DWORD error = GetLastError();
-        if (error == ERROR_FILE_NOT_FOUND) {
-            std::wcerr << L"错误: 找不到指定的事件。服务可能没有使用该事件名称启动。" << std::endl;
-        } else {
-            std::wcerr << L"错误: 无法打开事件，错误代码: " << error << std::endl;
-        }
-        return false;
-    }
-    
-    // 设置事件以通知服务关闭
-    if (SetEvent(hEvent)) {
-        std::wcout << L"关闭事件已发送，服务应该会优雅关闭..." << std::endl;
-        CloseHandle(hEvent);
-        return true;
-    } else {
-        DWORD error = GetLastError();
-        std::wcerr << L"错误: 无法设置事件，错误代码: " << error << std::endl;
-        CloseHandle(hEvent);
-        return false;
-    }
-}
-
-// 自动发现并关闭服务
-bool shutdownServiceAuto(const std::string& pipe_name, int timeout_ms) {
-    // 方法1: 尝试通过默认事件名称关闭
-    std::string default_event_name = "Global\\OCRServiceShutdown";
-    std::wcout << L"尝试方法1: 通过默认事件名称关闭..." << std::endl;
-    if (shutdownServiceViaEvent(default_event_name)) {
-        return true;
-    }
+    std::wcout << L"  ocr_client --pipe-name \\\\.\\pipe\\ocr_service image.jpg\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -100,11 +59,9 @@ int main(int argc, char* argv[]) {
 
     std::string pipe_name = "\\\\.\\pipe\\ocr_service";
     std::string image_path;
-    std::string shutdown_event_name = "";
     int timeout_ms = 5000;
     bool get_status = false;
     bool shutdown_service = false;
-    bool shutdown_via_event = false;
     
     // 解析命令行参数
     for (int i = 1; i < argc; ++i) {
@@ -125,10 +82,6 @@ int main(int argc, char* argv[]) {
         else if (arg == "--shutdown") {
             shutdown_service = true;
         }
-        else if (arg == "--shutdown-event" && i + 1 < argc) {
-            shutdown_event_name = argv[++i];
-            shutdown_via_event = true;
-        }
         else if (arg[0] != '-') {
             image_path = arg;
         }else {
@@ -137,21 +90,70 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }    
-    if (!get_status && !shutdown_service && !shutdown_via_event && image_path.empty()) {
+    if (!get_status && !shutdown_service && image_path.empty()) {
         std::wcerr << L"Error: Image path is required" << std::endl;
         printUsage();
-        return 1;    
+        return 1;
     }
     
     try {
         // 处理关闭服务的请求
-        if (shutdown_via_event) {
-            // 通过指定的事件名称关闭服务
-            return shutdownServiceViaEvent(shutdown_event_name) ? 0 : 1;
-        }
-        else if (shutdown_service) {
-            // 自动发现并关闭服务
-            return shutdownServiceAuto(pipe_name, timeout_ms) ? 0 : 1;
+        if (shutdown_service) {
+            // 通过管道发送shutdown命令
+            PaddleOCR::OCRIPCClient client(pipe_name);
+            std::wcout << L"连接到OCR服务以发送关闭命令..." << std::endl;
+            
+            if (!client.connect(timeout_ms)) {
+                std::wcerr << L"无法连接到OCR服务。服务可能没有运行。" << std::endl;
+                return 1;
+            }
+            
+            std::wcout << L"发送关闭命令..." << std::endl;
+            
+            try {
+                std::string response = client.sendShutdownCommand();
+                std::wcout << L"收到响应，长度: " << response.length() << std::endl;
+                
+                if (response.empty()) {
+                    std::wcout << L"响应为空，服务可能已关闭。" << std::endl;
+                } else {
+                    // 先尝试解析JSON响应
+                    Json::Value json_response;
+                    Json::CharReaderBuilder reader_builder;
+                    std::istringstream stream(response);
+                    std::string errors;
+                    
+                    if (Json::parseFromStream(reader_builder, stream, &json_response, &errors)) {
+                        if (json_response.isMember("success") && json_response["success"].asBool()) {
+                            std::wstring message = utf8ToWideString(json_response.get("message", "服务关闭命令已发送").asString());
+                            std::wcout << L"✓ " << message << std::endl;
+                        } else if (json_response.isMember("error")) {
+                            std::wstring error_msg = utf8ToWideString(json_response["error"].asString());
+                            std::wcerr << L"关闭命令失败: " << error_msg << std::endl;
+                        } else {
+                            std::wcout << L"收到未知格式的JSON响应" << std::endl;
+                        }
+                    } else {
+                        // JSON解析失败，显示原始响应
+                        std::wcout << L"无法解析JSON响应，但关闭命令已发送" << std::endl;
+                        std::wstring response_wide = utf8ToWideString(response);
+                        std::wcout << L"原始响应: " << response_wide << std::endl;
+                    }
+                }
+                
+                std::wcout << L"关闭命令处理完成。" << std::endl;
+                
+            } catch (const std::exception& e) {
+                // 显示具体的异常信息
+                std::wstring error_msg = utf8ToWideString(e.what());
+                std::wcout << L"发送关闭命令时发生异常: " << error_msg << std::endl;
+                std::wcout << L"这可能是正常的，因为服务正在关闭..." << std::endl;
+            } catch (...) {
+                std::wcout << L"发送关闭命令时发生未知异常，服务可能正在关闭..." << std::endl;
+            }
+            
+            client.disconnect();
+            return 0;
         }
         
         // 正常的OCR操作需要连接到服务
@@ -166,15 +168,37 @@ int main(int argc, char* argv[]) {
         
         if (get_status) {
             // 获取状态信息
-            Json::Value request;
-            request["command"] = "status";
+            std::wcout << L"获取服务状态信息..." << std::endl;
             
-            Json::StreamWriterBuilder builder;
-            std::string request_str = Json::writeString(builder, request);
-            
-            // 这里需要直接调用内部方法，实际应该扩展客户端API
-            std::wcout << L"Service status information:" << std::endl;
-            // 简化处理，在实际实现中应该添加getStatus方法
+            try {
+                std::string response = client.getServiceStatus();
+                
+                // 解析响应
+                Json::Value json_response;
+                Json::CharReaderBuilder reader_builder;
+                std::istringstream stream(response);
+                std::string errors;
+                
+                if (Json::parseFromStream(reader_builder, stream, &json_response, &errors)) {
+                    if (json_response["success"].asBool()) {
+                        std::wcout << L"\n=== 服务状态信息 ===" << std::endl;
+                        std::wstring status_info = utf8ToWideString(json_response["status"].asString());
+                        std::wcout << status_info << std::endl;
+                    } else {
+                        std::wstring error_msg = utf8ToWideString(json_response["error"].asString());
+                        std::wcerr << L"获取状态失败: " << error_msg << std::endl;
+                        return 1;
+                    }
+                } else {
+                    std::wstring error_wide = utf8ToWideString(errors);
+                    std::wcerr << L"解析状态响应失败: " << error_wide << std::endl;
+                    return 1;
+                }
+            } catch (const std::exception& e) {
+                std::wstring error_msg = utf8ToWideString(e.what());
+                std::wcerr << L"获取状态时发生错误: " << error_msg << std::endl;
+                return 1;
+            }
         } else {            // 执行OCR识别
             auto start_time = std::chrono::high_resolution_clock::now();
             

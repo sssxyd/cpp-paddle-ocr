@@ -18,6 +18,8 @@ public:
     void disconnect();
     
     std::string recognizeImage(const std::string& image_path);
+    std::string sendShutdownCommand();
+    std::string getServiceStatus();
     
     bool isConnected() const { return connected_; }
 

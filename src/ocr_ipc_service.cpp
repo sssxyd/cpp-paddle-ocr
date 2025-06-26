@@ -241,6 +241,21 @@ void OCRIPCService::handleClientConnection(HANDLE pipe_handle) {
             std::string request(buffer);
             std::string response = processIPCRequest(request);
             
+            // 检查是否是shutdown命令
+            bool is_shutdown_command = false;
+            try {
+                Json::Value request_json;
+                Json::CharReaderBuilder builder;
+                std::istringstream stream(request);
+                std::string errors;
+                if (Json::parseFromStream(builder, stream, &request_json, &errors)) {
+                    std::string command = request_json.get("command", "").asString();
+                    is_shutdown_command = (command == "shutdown");
+                }
+            } catch (...) {
+                // 忽略解析错误
+            }
+            
             DWORD bytes_written;
             if (!WriteFile(pipe_handle, response.c_str(), response.length(), &bytes_written, NULL)) {
                 DWORD error = GetLastError();
@@ -252,6 +267,12 @@ void OCRIPCService::handleClientConnection(HANDLE pipe_handle) {
             }
             
             std::cout << "[Thread-" << client_thread_id << "] Sent " << bytes_written << " bytes response to client" << std::endl;
+            
+            // 如果是shutdown命令，在发送响应后立即退出客户端处理循环
+            if (is_shutdown_command) {
+                std::cout << "[Thread-" << client_thread_id << "] Shutdown command processed, closing client connection" << std::endl;
+                break;
+            }
         } else {
             // ReadFile 失败，检查具体原因
             DWORD error = GetLastError();
@@ -351,6 +372,38 @@ std::string OCRIPCService::processIPCRequest(const std::string& request_json) {
             status_response["status"] = getStatusInfo();
             Json::StreamWriterBuilder writer_builder;
             return Json::writeString(writer_builder, status_response);
+        }
+        else if (command == "shutdown") {
+            Json::Value shutdown_response;
+            shutdown_response["success"] = true;
+            shutdown_response["message"] = "Shutdown command received, stopping service...";
+            Json::StreamWriterBuilder writer_builder;
+            std::string response = Json::writeString(writer_builder, shutdown_response);
+            
+            // 启动关闭定时器，在单独的线程中延迟停止服务
+            // 使用更智能的等待机制：等待客户端连接关闭或超时
+            std::thread([this]() {
+                std::cout << "Service shutdown initiated, waiting for client connections to close..." << std::endl;
+                
+                // 等待最多200ms，或者直到客户端连接关闭
+                for (int i = 0; i < 20; ++i) {  // 20 * 10ms = 200ms 最大等待
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    
+                    // 检查是否还有活跃的客户端连接
+                    {
+                        std::lock_guard<std::mutex> lock(client_threads_mutex_);
+                        if (client_threads_.empty()) {
+                            std::cout << "All client connections closed, stopping service immediately." << std::endl;
+                            break;
+                        }
+                    }
+                }
+                
+                std::cout << "Service stopping now..." << std::endl;
+                this->stop();
+            }).detach();
+            
+            return response;
         }
         else {
             Json::Value error_response;

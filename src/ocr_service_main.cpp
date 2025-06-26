@@ -11,7 +11,6 @@
 #endif
 
 std::unique_ptr<PaddleOCR::OCRIPCService> g_service;
-HANDLE g_shutdown_event = NULL;
 
 #ifdef _WIN32
 std::wstring utf8ToWideString(const std::string& utf8_str) {
@@ -52,9 +51,6 @@ BOOL WINAPI ConsoleHandler(DWORD dwType) {
         if (g_service) {
             g_service->stop();
         }
-        if (g_shutdown_event) {
-            SetEvent(g_shutdown_event);
-        }
         return TRUE;
     default:
         return FALSE;
@@ -62,20 +58,20 @@ BOOL WINAPI ConsoleHandler(DWORD dwType) {
 }
 
 void printUsage() {
-    std::wcout << L"OCR IPC Service\n";
+    std::wcout << L"OCR IPC Service 1.0.1\n";
     std::wcout << L"Usage: ocr_service [options]\n";
     std::wcout << L"\nOptions:\n";
     std::wcout << L"  --model-dir <path>    模型文件目录路径 (默认: ./models)\n";
     std::wcout << L"  --pipe-name <name>    命名管道名称 (默认: \\\\.\\pipe\\ocr_service)\n";
     std::wcout << L"  --gpu-workers <num>   GPU Worker数量 (默认: 0)\n";
     std::wcout << L"  --cpu-workers <num>   CPU Worker数量 (默认: 1)\n";
-    std::wcout << L"  --shutdown-event <name>  关闭事件名称 (用于优雅关闭)\n";
     std::wcout << L"  --help                显示此帮助信息\n";
     std::wcout << L"\n示例:\n";
-    std::wcout << L"  ocr_service --model-dir ./models --pipe-name \\\\.\\pipe\\my_ocr\n";
+    std::wcout << L"  ocr_service --model-dir ./models --pipe-name \\\\.\\pipe\\ocr_service\n";
     std::wcout << L"  ocr_service --cpu-workers 4\n";
     std::wcout << L"  ocr_service --gpu-workers 2\n";
-    std::wcout << L"  ocr_service --shutdown-event Global\\\\OCRServiceShutdown\n";
+    std::wcout << L"\n注意:\n";
+    std::wcout << L"  可以使用 'ocr_client --shutdown' 命令优雅关闭服务\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -85,7 +81,6 @@ int main(int argc, char* argv[]) {
 
     std::string model_dir = "./models";
     std::string pipe_name = "\\\\.\\pipe\\ocr_service";
-    std::string shutdown_event_name = "";
     int gpu_workers = 0;  // 默认0个GPU Worker, 使用CPU处理
     int cpu_workers = 1;  // 默认1个CPU Worker
     
@@ -102,9 +97,6 @@ int main(int argc, char* argv[]) {
         }        else if (arg == "--pipe-name" && i + 1 < argc) {
             pipe_name = argv[++i];
         }
-        else if (arg == "--shutdown-event" && i + 1 < argc) {
-            shutdown_event_name = argv[++i];
-        }
         else if (arg == "--gpu-workers" && i + 1 < argc) {
             gpu_workers = std::stoi(argv[++i]);
         }
@@ -120,24 +112,14 @@ int main(int argc, char* argv[]) {
     std::wcout << L"Pipe Name: " << std::wstring(pipe_name.begin(), pipe_name.end()) << std::endl;
     std::wcout << L"GPU Workers: " << gpu_workers << std::endl;
     std::wcout << L"CPU Workers: " << cpu_workers << std::endl;
-    if (!shutdown_event_name.empty()) {
-        std::wcout << L"Shutdown Event: " << std::wstring(shutdown_event_name.begin(), shutdown_event_name.end()) << std::endl;
-    }
     std::wcout << L"==============================" << std::endl;
-      try {        // 创建或打开关闭事件
-        if (!shutdown_event_name.empty()) {
-            g_shutdown_event = CreateEventA(NULL, TRUE, FALSE, shutdown_event_name.c_str());
-            if (g_shutdown_event == NULL) {
-                std::wcerr << L"Warning: Could not create shutdown event: " << std::wstring(shutdown_event_name.begin(), shutdown_event_name.end()) << std::endl;
-            } else {
-                std::wcout << L"Monitoring shutdown event: " << std::wstring(shutdown_event_name.begin(), shutdown_event_name.end()) << std::endl;
-            }
-        }
-        
+      try {
         // 设置控制台处理程序
         if (!SetConsoleCtrlHandler(ConsoleHandler, TRUE)) {
             std::wcerr << L"Warning: Could not set console handler" << std::endl;
-        }        // 创建并启动服务
+        }
+        
+        // 创建并启动服务
         g_service = std::make_unique<PaddleOCR::OCRIPCService>(model_dir, pipe_name, gpu_workers, cpu_workers);
         
         if (!g_service->start()) {
@@ -145,44 +127,26 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         std::wcout << L"OCR Service is running..." << std::endl;
-        std::wcout << L"Press Ctrl+C to stop the service" << std::endl;
+        std::wcout << L"Press Ctrl+C to stop the service, or use 'ocr_client --shutdown'" << std::endl;
         
-        // 主循环 - 监听关闭事件和定期输出状态信息
+        // 主循环 - 定期输出状态信息
         while (g_service->isRunning()) {
-            DWORD wait_result = WAIT_TIMEOUT;
+            // 等待5秒并检查服务状态
+            std::this_thread::sleep_for(std::chrono::seconds(5));
             
-            if (g_shutdown_event) {
-                // 等待关闭事件或超时
-                wait_result = WaitForSingleObject(g_shutdown_event, 5000); // 5秒超时
-            } else {
-                // 没有关闭事件，只是简单等待
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-            }
-              if (wait_result == WAIT_OBJECT_0) {
-                // 收到关闭信号
-                std::wcout << L"Received shutdown event, stopping service..." << std::endl;
-                g_service->stop();
-                break;
-            } else if (wait_result == WAIT_TIMEOUT) {
-                // 超时，继续运行并输出状态（每30秒一次）
-                static int status_counter = 0;
-                if (++status_counter >= 6) { // 5秒 * 6 = 30秒
-                    status_counter = 0;
-                    if (g_service->isRunning()) {
-                        std::string status_info = g_service->getStatusInfo();
-                        std::wstring status_wide = utf8ToWideString(status_info);
-                        std::wcout << L"Service Status: " << status_wide << std::endl;
-                    }
+            // 每30秒输出一次状态
+            static int status_counter = 0;
+            if (++status_counter >= 6) { // 5秒 * 6 = 30秒
+                status_counter = 0;
+                if (g_service->isRunning()) {
+                    std::string status_info = g_service->getStatusInfo();
+                    std::wstring status_wide = utf8ToWideString(status_info);
+                    std::wcout << L"Service Status: " << status_wide << std::endl;
                 }
             }
-        }        
-        std::wcout << L"Service stopped gracefully" << std::endl;
-        
-        // 清理资源
-        if (g_shutdown_event) {
-            CloseHandle(g_shutdown_event);
-            g_shutdown_event = NULL;
         }
+        
+        std::wcout << L"Service stopped gracefully" << std::endl;
     }
     catch (const std::exception& e) {
         std::wstring error_msg = utf8ToWideString(e.what());

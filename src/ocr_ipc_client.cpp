@@ -198,12 +198,17 @@ std::string OCRIPCClient::sendRequest(const std::string& request_json) {
     // 发送请求
     DWORD bytes_written;
     if (!WriteFile(pipe_handle_, request_json.c_str(), request_json.length(), &bytes_written, NULL)) {
+        DWORD error = GetLastError();
+        std::cerr << "WriteFile failed with error: " << error << std::endl;
+        
         Json::Value error_response;
         error_response["success"] = false;
-        error_response["error"] = "Failed to send request";
+        error_response["error"] = "Failed to send request (error " + std::to_string(error) + ")";
         Json::StreamWriterBuilder builder;
         return Json::writeString(builder, error_response);
     }
+    
+    std::cout << "Sent " << bytes_written << " bytes to server" << std::endl;
     
     // 读取响应
     const int BUFFER_SIZE = 65536;
@@ -212,14 +217,38 @@ std::string OCRIPCClient::sendRequest(const std::string& request_json) {
     
     if (ReadFile(pipe_handle_, buffer, BUFFER_SIZE - 1, &bytes_read, NULL)) {
         buffer[bytes_read] = '\0';
+        std::cout << "Received " << bytes_read << " bytes from server" << std::endl;
         return std::string(buffer);
     } else {
+        DWORD error = GetLastError();
+        std::cerr << "ReadFile failed with error: " << error << std::endl;
+        
         Json::Value error_response;
         error_response["success"] = false;
-        error_response["error"] = "Failed to read response";
+        error_response["error"] = "Failed to read response (error " + std::to_string(error) + ")";
         Json::StreamWriterBuilder builder;
         return Json::writeString(builder, error_response);
     }
+}
+
+std::string OCRIPCClient::sendShutdownCommand() {
+    Json::Value request;
+    request["command"] = "shutdown";
+    
+    Json::StreamWriterBuilder builder;
+    std::string request_json = Json::writeString(builder, request);
+    
+    return sendRequest(request_json);
+}
+
+std::string OCRIPCClient::getServiceStatus() {
+    Json::Value request;
+    request["command"] = "status";
+    
+    Json::StreamWriterBuilder builder;
+    std::string request_json = Json::writeString(builder, request);
+    
+    return sendRequest(request_json);
 }
 
 } // namespace PaddleOCR
