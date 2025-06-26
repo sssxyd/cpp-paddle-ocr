@@ -16,7 +16,58 @@
         }
       ],
       "console": "integratedTerminal",  
-      "preLaunchTask": "build-debug"  // 调试前先构建
+      "preLaunchTask": "build-debug"
+    },
+    {
+      "name": "Debug OCR Tests",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/build/test_ocr_worker_debug.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/tests/build",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "${workspaceFolder}/bin/msvc;${workspaceFolder}/tests/build;${env:PATH}"
+        }
+      ],
+      "console": "integratedTerminal",
+      "preLaunchTask": "build-ocr-tests-debug"
+    },
+    {
+      "name": "Debug Single Test (BasicOCRProcessing)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/build/test_ocr_worker_debug.exe",
+      "args": ["BasicOCRProcessing"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/tests/build",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "${workspaceFolder}/bin/msvc;${workspaceFolder}/tests/build;${env:PATH}"
+        }
+      ],
+      "console": "integratedTerminal",
+      "preLaunchTask": "build-ocr-tests-debug"
+    },
+    {
+      "name": "Debug Single Test (ConstructorCPU)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/build/test_ocr_worker_debug.exe",
+      "args": ["ConstructorCPU"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/tests/build",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "${workspaceFolder}/bin/msvc;${workspaceFolder}/tests/build;${env:PATH}"
+        }
+      ],
+      "console": "integratedTerminal",
+      "preLaunchTask": "build-ocr-tests-debug"
     }
   ]
 }

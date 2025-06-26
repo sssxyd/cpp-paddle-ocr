@@ -191,6 +191,120 @@
         "ole32.lib",
         "oleaut32.lib",
         "uuid.lib"
+      ],      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build"
+    },      {
+      "label": "build-ocr-tests",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",        "-File",
+        "${workspaceFolder}\\tests\\build_tests.bat"
+      ],      "options": {
+        "cwd": "${workspaceFolder}\\tests"
+      },
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build-ocr-tests-debug",
+      "type": "shell",
+      "command": "cl.exe",
+      "args": [
+        "/std:c++20",
+        "/utf-8",
+        "/EHsc",
+        "/TP",
+        "/MTd",              // Debug 静态运行时库
+        "/W3",
+        "/Od",               // Debug 优化关闭
+        "/Zi",               // 调试信息
+        "/DEBUG",            // Debug 宏定义
+        "/DWIN32",
+        "/D_WINDOWS",
+        "/D_CRT_SECURE_NO_WARNINGS",
+        "/DBASE64_STATIC_DEFINE",
+        "${workspaceFolder}\\tests\\test_ocr_worker.cpp",
+        "${workspaceFolder}\\src\\ocr_worker.cpp",
+        "${workspaceFolder}\\src\\ocr_det.cpp",
+        "${workspaceFolder}\\src\\ocr_rec.cpp",
+        "${workspaceFolder}\\src\\ocr_cls.cpp",
+        "${workspaceFolder}\\src\\clipper.cpp",
+        "${workspaceFolder}\\src\\postprocess_op.cpp",
+        "${workspaceFolder}\\src\\preprocess_op.cpp",
+        "${workspaceFolder}\\src\\utility.cpp",
+        "/I",
+        "${workspaceFolder}\\include",
+        "/I",
+        "${env:MSVC_INCLUDE}",
+        "/I",
+        "${env:WIN_SDK_INCLUDE}\\ucrt",
+        "/I",
+        "${env:WIN_SDK_INCLUDE}\\shared",
+        "/I",
+        "${env:WIN_SDK_INCLUDE}\\um",
+        "/I",
+        "${env:VCPKG_STATIC}\\include",
+        "/I",
+        "${env:VCPKG_STATIC}\\include\\opencv4",        "/Fe:${workspaceFolder}\\tests\\build\\test_ocr_worker_debug.exe",
+        "/Fo:${workspaceFolder}\\tests\\build\\",
+        "/Fd:${workspaceFolder}\\tests\\build\\test_ocr_worker_debug.pdb",
+        "/link",
+        "/DEBUG",
+        "/PDB:${workspaceFolder}\\tests\\build\\test_ocr_worker_debug.pdb",
+        "/LIBPATH:${env:MSVC_LIB}",
+        "/LIBPATH:${env:WIN_SDK_LIB}\\ucrt\\x64",
+        "/LIBPATH:${env:WIN_SDK_LIB}\\um\\x64",
+        "/LIBPATH:${env:VCPKG_STATIC}\\lib",
+        "/LIBPATH:${workspaceFolder}\\lib\\msvc",
+        "paddle_inference.lib",
+        "opencv_highgui4.lib",
+        "opencv_imgcodecs4.lib",
+        "opencv_imgproc4.lib",
+        "opencv_core4.lib",
+        "gflags_static.lib",
+        "jsoncpp.lib",
+        "base64.lib",
+        "kernel32.lib",
+        "user32.lib",
+        "gdi32.lib",
+        "advapi32.lib",
+        "shell32.lib",
+        "ole32.lib",
+        "oleaut32.lib",
+        "uuid.lib",
+        "comdlg32.lib",
+        "shlwapi.lib"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "dependsOn": "copy-build-dependencies",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run-ocr-tests",
+      "type": "shell",
+      "command": "${workspaceFolder}\\tests\\build\\test_ocr_worker.exe",
+      "options": {
+        "cwd": "${workspaceFolder}\\tests\\build"
+      },
+      "group": "test",
+      "dependsOn": "build-ocr-tests"
+    },
+    {
+      "label": "clean-test-build",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "if (Test-Path '${workspaceFolder}\\tests\\build') { Remove-Item -Recurse -Force '${workspaceFolder}\\tests\\build'; Write-Host 'Test build directory cleaned' } else { Write-Host 'Test build directory does not exist' }"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
