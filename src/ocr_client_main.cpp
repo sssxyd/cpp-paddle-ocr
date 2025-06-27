@@ -37,7 +37,7 @@ void setupConsole() {
 #endif
 
 void printUsage() {
-    std::wcout << L"OCR IPC Client\n";
+    std::wcout << L"OCR IPC Client 1.0.1\n";
     std::wcout << L"Usage: ocr_client [options] <image_path>\n";
     std::wcout << L"\nOptions:\n";
     std::wcout << L"  --pipe-name <name>    命名管道名称 (默认: \\\\.\\pipe\\ocr_service)\n";
@@ -112,35 +112,7 @@ int main(int argc, char* argv[]) {
             
             try {
                 std::string response = client.sendShutdownCommand();
-                std::wcout << L"收到响应，长度: " << response.length() << std::endl;
-                
-                if (response.empty()) {
-                    std::wcout << L"响应为空，服务可能已关闭。" << std::endl;
-                } else {
-                    // 先尝试解析JSON响应
-                    Json::Value json_response;
-                    Json::CharReaderBuilder reader_builder;
-                    std::istringstream stream(response);
-                    std::string errors;
-                    
-                    if (Json::parseFromStream(reader_builder, stream, &json_response, &errors)) {
-                        if (json_response.isMember("success") && json_response["success"].asBool()) {
-                            std::wstring message = utf8ToWideString(json_response.get("message", "服务关闭命令已发送").asString());
-                            std::wcout << L"✓ " << message << std::endl;
-                        } else if (json_response.isMember("error")) {
-                            std::wstring error_msg = utf8ToWideString(json_response["error"].asString());
-                            std::wcerr << L"关闭命令失败: " << error_msg << std::endl;
-                        } else {
-                            std::wcout << L"收到未知格式的JSON响应" << std::endl;
-                        }
-                    } else {
-                        // JSON解析失败，显示原始响应
-                        std::wcout << L"无法解析JSON响应，但关闭命令已发送" << std::endl;
-                        std::wstring response_wide = utf8ToWideString(response);
-                        std::wcout << L"原始响应: " << response_wide << std::endl;
-                    }
-                }
-                
+                std::wcout << L"收到响应，长度: " << response.length() << std::endl;                                
                 std::wcout << L"关闭命令处理完成。" << std::endl;
                 
             } catch (const std::exception& e) {

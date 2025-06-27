@@ -211,7 +211,8 @@
       },
       "group": "build",
       "problemMatcher": "$msCompile"
-    },      {
+    },      
+    {
       "label": "build-ocr-tests-debug",
       "type": "shell",
       "command": "cl.exe",      "args": [
@@ -348,6 +349,272 @@
         "-Command",
         "Write-Host 'Copying dependencies to tests/build directory...'; if (!(Test-Path 'tests\\build')) { New-Item -ItemType Directory -Path 'tests\\build' -Force | Out-Null }; if (Test-Path 'bin\\msvc\\*.dll') { Copy-Item -Path 'bin\\msvc\\*.dll' -Destination 'tests\\build\\' -Force; Write-Host 'DLL files from bin/msvc copied successfully' } else { Write-Host 'No DLL files found in bin/msvc' }; if (Test-Path 'C:\\Windows\\System32\\vcomp140.dll') { Copy-Item -Path 'C:\\Windows\\System32\\vcomp140.dll' -Destination 'tests\\build\\' -Force; Write-Host 'vcomp140.dll copied successfully' } else { Write-Host 'vcomp140.dll not found in System32' }; if (Test-Path 'models') { if (!(Test-Path 'tests\\build\\models')) { Copy-Item -Path 'models' -Destination 'tests\\build\\' -Recurse -Force; Write-Host 'Models directory copied successfully' } else { Write-Host 'Models directory already exists, skipping copy' } } else { Write-Host 'Models directory not found' }; if (Test-Path 'images') { if (!(Test-Path 'tests\\build\\images')) { Copy-Item -Path 'images' -Destination 'tests\\build\\' -Recurse -Force; Write-Host 'Images directory copied successfully' } else { Write-Host 'Images directory already exists, skipping copy' } } else { Write-Host 'Images directory not found' }; Write-Host 'Test dependencies copy completed!'"
       ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "release-ocr-service",
+      "type": "shell",
+      "command": "cl.exe",
+      "args": [
+        "/std:c++20",
+        "/utf-8",
+        "/EHsc",
+        "/TP",
+        "/MT",               // Release 静态运行时库
+        "/W3",
+        "/O2",               // Release 优化
+        "/GL",               // 全程序优化
+        "/DNDEBUG",          // Release 宏定义
+        "/DWIN32",          // 定义 Windows 平台
+        "/D_WINDOWS",                 // Windows 平台
+        "/D_CRT_SECURE_NO_WARNINGS",  // 禁用安全警告
+        "/DBASE64_STATIC_DEFINE",     // 定义 Base64 静态库宏
+          // 编译 src 目录下的所有源文件（main.cpp放在第一位）
+        "src/ocr_service_main.cpp",
+        "src/ocr_service.cpp",
+        "src/ocr_worker.cpp",
+        "src/gpu_worker_pool.cpp",
+        "src/cpu_worker_pool.cpp",
+        "src/ocr_ipc_service.cpp",
+        "src/ocr_ipc_client.cpp",
+        "src/clipper.cpp",
+        "src/ocr_cls.cpp", 
+        "src/ocr_det.cpp",
+        "src/ocr_rec.cpp",
+        "src/postprocess_op.cpp",
+        "src/preprocess_op.cpp",
+        "src/utility.cpp",
+
+        // 头文件路径
+        "/I", "${workspaceFolder}/include",
+        "/I", "${env:MSVC_INCLUDE}",
+        "/I", "${env:WIN_SDK_INCLUDE}/ucrt",
+        "/I", "${env:WIN_SDK_INCLUDE}/shared",
+        "/I", "${env:WIN_SDK_INCLUDE}/um",        
+        "/I", "${env:VCPKG_STATIC}/include",       
+        "/I", "${env:VCPKG_STATIC}/include/opencv4",      
+
+        "/Fe:${workspaceFolder}\\dist\\ocr-service.exe",   // 输出到dist目录
+        "/Fo:${workspaceFolder}\\dist\\",          // 指定对象文件输出目录
+        
+        "/link",
+        "/LTCG",             // 链接时代码生成优化
+        "/OPT:REF",          // 移除未引用的函数和数据
+        "/OPT:ICF",          // 启用COMDAT折叠
+        // 排除 Debug 运行时库
+        "/NODEFAULTLIB:msvcprtd.lib",
+        "/NODEFAULTLIB:msvcrtd.lib",
+        "/NODEFAULTLIB:libcmtd.lib",      
+        
+        // 库文件路径（使用 Release 路径）
+        "/LIBPATH:${env:MSVC_LIB}",
+        "/LIBPATH:${env:WIN_SDK_LIB}/ucrt/x64",
+        "/LIBPATH:${env:WIN_SDK_LIB}/um/x64",
+        "/LIBPATH:${env:VCPKG_STATIC}/lib",  
+        "/LIBPATH:${workspaceFolder}/lib/msvc",
+        
+        // 资源文件
+        "${workspaceFolder}\\dist\\service_icon.res",
+        
+        // 主要库
+        "paddle_inference.lib",
+        
+        // OpenCV 库（Release 版本，去掉 'd' 后缀）
+        "opencv_highgui4.lib",
+        "opencv_imgcodecs4.lib",
+        "opencv_imgproc4.lib",
+        "opencv_core4.lib",
+        
+        // 日志库（Release 版本）        
+        "gflags_static.lib",
+
+        "jsoncpp.lib",           // JSON 库
+        "base64.lib",            // Base64 编码/解码库 (aklomp-base64)
+        
+        // 图像格式库（Release 版本）
+        "libwebp.lib",
+        "libwebpdemux.lib",
+        "libwebpmux.lib",
+        "libwebpdecoder.lib",
+        "libsharpyuv.lib",
+        
+        // 压缩库（Release 版本）
+        "zlib.lib",
+        "libpng16.lib",
+        "tiff.lib",
+        "lzma.lib",
+        "turbojpeg.lib",       
+        
+        // Windows 系统库
+        "kernel32.lib",
+        "user32.lib",
+        "gdi32.lib",
+        "advapi32.lib",
+        "shell32.lib",
+        "ole32.lib",
+        "oleaut32.lib",
+        "uuid.lib",        
+        "comdlg32.lib",        
+        "shlwapi.lib"        // 用于 gflags PathMatchSpecA 函数
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },      
+      "problemMatcher": ["$msCompile"],
+      "dependsOrder": "sequence",
+      "dependsOn": ["compile-service-resources", "copy-release-dependencies"]
+    },
+    {
+      "label": "copy-release-dependencies",
+      "type": "shell",
+      "command": "powershell",
+      "args": [        
+        "-ExecutionPolicy", "Bypass",
+        "-Command",
+        "Write-Host 'Copying dependencies to dist directory...'; if (!(Test-Path 'dist')) { New-Item -ItemType Directory -Path 'dist' -Force | Out-Null; Write-Host 'Created dist directory' }; if (Test-Path 'bin\\msvc\\*.dll') { Copy-Item -Path 'bin\\msvc\\*.dll' -Destination 'dist\\' -Force; Write-Host 'DLL files from bin/msvc copied successfully' } else { Write-Host 'No DLL files found in bin/msvc' }; if (Test-Path 'C:\\Windows\\System32\\vcomp140.dll') { Copy-Item -Path 'C:\\Windows\\System32\\vcomp140.dll' -Destination 'dist\\' -Force; Write-Host 'vcomp140.dll copied successfully' } else { Write-Host 'vcomp140.dll not found in System32' }; if (Test-Path 'models') { if (!(Test-Path 'dist\\models')) { Copy-Item -Path 'models' -Destination 'dist\\' -Recurse -Force; Write-Host 'Models directory copied successfully' } else { Write-Host 'Models directory already exists, skipping copy' } } else { Write-Host 'Models directory not found' }; Write-Host 'Release dependencies copy completed!'"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "release-ocr-client",
+      "type": "shell",
+      "command": "cl.exe", 
+      "args": [
+        "/std:c++20",
+        "/utf-8",
+        "/EHsc",
+        "/TP",
+        "/MT",
+        "/W3",
+        "/O2",
+        "/GL",               // 全程序优化
+        "/DNDEBUG",
+        "/DWIN32",
+        "/D_WINDOWS", 
+        "/D_CRT_SECURE_NO_WARNINGS",
+        "/DBASE64_STATIC_DEFINE",     // 定义 Base64 静态库宏
+        // OCR Client 源文件（仅客户端相关）
+        "src/ocr_client_main.cpp",
+        "src/ocr_ipc_client.cpp",
+        
+        // 头文件路径
+        "/I", "${workspaceFolder}/include",
+        "/I", "${env:MSVC_INCLUDE}", 
+        "/I", "${env:WIN_SDK_INCLUDE}/ucrt",
+        "/I", "${env:WIN_SDK_INCLUDE}/shared",
+        "/I", "${env:WIN_SDK_INCLUDE}/um",
+        "/I", "${env:VCPKG_STATIC}/include",
+
+        "/Fe:${workspaceFolder}\\dist\\ocr-client.exe",  // 输出到release目录
+        "/Fo:${workspaceFolder}\\dist\\",
+        
+        "/link",
+        "/LTCG",             // 链接时代码生成优化
+        "/OPT:REF",          // 移除未引用的函数和数据
+        "/OPT:ICF",          // 启用COMDAT折叠        
+        "/NODEFAULTLIB:msvcprtd.lib",
+        "/NODEFAULTLIB:msvcrtd.lib",
+        "/NODEFAULTLIB:libcmtd.lib", 
+        "/LIBPATH:${env:MSVC_LIB}",
+        "/LIBPATH:${env:WIN_SDK_LIB}/ucrt/x64",
+        "/LIBPATH:${env:WIN_SDK_LIB}/um/x64",
+        "/LIBPATH:${env:VCPKG_STATIC}/lib",
+
+        // 资源文件
+        "${workspaceFolder}\\dist\\client_icon.res",        
+
+        "jsoncpp.lib",           // JSON 解析
+        "base64.lib",         // Base64 编码/解码
+        "kernel32.lib",          // Windows API
+        "user32.lib",
+        "advapi32.lib",
+        "ole32.lib",
+        "oleaut32.lib",
+        "uuid.lib"
+      ],      
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "dependsOrder": "sequence",
+      "dependsOn": ["copy-client-dist-dependencies", "compile-client-resources"]
+    },
+    {
+      "label": "copy-client-dist-dependencies",
+      "type": "shell",
+      "command": "powershell",
+      "args": [        
+        "-ExecutionPolicy", "Bypass",
+        "-Command",
+        "Write-Host 'Copying client dependencies to dist directory...'; if (!(Test-Path 'dist')) { New-Item -ItemType Directory -Path 'dist' -Force | Out-Null }; Write-Host 'Client dist dependencies copy completed!'"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "compile-service-resources",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-OutputFormat", "Text",
+        "-File", "${workspaceFolder}\\scripts\\compile-service-resources.ps1",
+        "-WorkspaceFolder", "${workspaceFolder}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "compile-client-resources",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-OutputFormat", "Text",
+        "-File", "${workspaceFolder}\\scripts\\compile-client-resources.ps1",
+        "-WorkspaceFolder", "${workspaceFolder}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONIOENCODING": "utf-8"
+        }
+      },
       "group": "build",
       "presentation": {
         "echo": true,

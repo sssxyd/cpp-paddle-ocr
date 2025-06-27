@@ -10,6 +10,7 @@
    - MSVC_BIN: `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64`
    - WIN_SDK_INCLUDE: `C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0`
    - WIN_SDK_LIB: `C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0`
+   - WIN_SDK_BIN: `C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64`
 
 ## VCPKG环境
 1. 安装vcpkg `git clone https://github.com/microsoft/vcpkg.git`
@@ -31,26 +32,6 @@
 3. 根据 [lib/msvc/README.md](./lib/msvc/README.md) 复制 lib
 4. 根据 [bin/msvc/README.md](./bin/msvc/README.md) 复制 dll
 
-## 主&子进程
-1. 主业务启动OCR
-   ```c++
-   // 在主业务进程中
-   std::string shutdown_event_name = "Global\\OCRServiceShutdown_" + std::to_string(GetCurrentProcessId());
-   HANDLE shutdown_event = CreateEventA(NULL, TRUE, FALSE, shutdown_event_name.c_str());
-
-   // 启动子进程
-   std::string cmd = "ocr_service.exe --shutdown-event " + shutdown_event_name;
-   PROCESS_INFORMATION pi;
-   STARTUPINFOA si = {sizeof(si)};
-   CreateProcessA(NULL, &cmd[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
-   ```
-2. 主业务关闭OCR
-   ```c++
-   // 在主业务进程退出时
-   SetEvent(shutdown_event);  // 发送关闭信号
-   WaitForSingleObject(pi.hProcess, 10000);  // 等待最多10秒
-   TerminateProcess(pi.hProcess, 1);  // 强制终止（如果仍在运行）
-   CloseHandle(shutdown_event);
-   CloseHandle(pi.hProcess);
-   CloseHandle(pi.hThread);
-   ```
+## 编译图片
+1. rc文件编码，应当是：UTF-16 LE BOM
+2. ps1文件里，不要用中文，搞不定
