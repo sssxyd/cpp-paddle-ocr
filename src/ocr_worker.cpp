@@ -154,6 +154,8 @@ void OCRWorker::workerLoop() {
                 // 构建结果字符串
                 Json::Value json_result;
                 json_result["request_id"] = result.request_id;
+                json_result["width"] = result.width;
+                json_result["height"] = result.height;
                 json_result["success"] = result.success;
                 json_result["processing_time_ms"] = result.processing_time_ms;
                 json_result["worker_id"] = worker_id_;
@@ -214,6 +216,8 @@ OCRResult OCRWorker::processRequest(const OCRRequest& request) {
             result.error_message = "Empty image data provided";
             return result;
         }
+        result.width = image.cols;
+        result.height = image.rows;
         
         // 文本检测
         std::vector<std::vector<std::vector<int>>> det_boxes;

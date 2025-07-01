@@ -35,6 +35,8 @@ struct OCRRequest {
 struct OCRResult {
     int request_id;
     bool success;
+    int width;
+    int height;
     std::string error_message;
     std::vector<std::string> texts;
     std::vector<std::vector<std::vector<int>>> boxes;

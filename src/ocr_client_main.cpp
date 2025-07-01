@@ -191,6 +191,7 @@ int main(int argc, char* argv[]) {
                     std::wcout << L"Processing Time: " << json_result["processing_time_ms"].asDouble() << L" ms" << std::endl;
                     std::wcout << L"Worker ID: " << json_result["worker_id"].asInt() << std::endl;
                     std::wcout << L"Total Time: " << duration.count() << L" ms" << std::endl;
+                    std::wcout << L"Image Size: " << json_result["width"].asInt() << L"x" << json_result["height"].asInt() << std::endl;
                     
                     const Json::Value& texts = json_result["texts"];
                     if (texts.isArray() && !texts.empty()) {
