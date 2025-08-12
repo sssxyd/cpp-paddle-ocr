@@ -29,6 +29,12 @@ struct OCRRequest {
         : request_id(id), image_data(img.clone()) {}
 };
 
+struct WordResult {
+    std::string text;  // 识别的文本
+    std::vector<std::vector<int>> box;  // 文本框坐标
+    float confidence;  // 置信度
+};
+
 /**
  * @brief OCR 处理结果
  */
@@ -38,9 +44,7 @@ struct OCRResult {
     int width;
     int height;
     std::string error_message;
-    std::vector<std::string> texts;
-    std::vector<std::vector<std::vector<int>>> boxes;
-    std::vector<float> confidences;
+    std::vector<WordResult> words;
     double processing_time_ms;
 };
 

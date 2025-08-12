@@ -161,24 +161,22 @@ void OCRWorker::workerLoop() {
                 json_result["worker_id"] = worker_id_;
                 
                 if (result.success) {
-                    Json::Value texts_array(Json::arrayValue);
-                    for (const auto& text : result.texts) {
-                        texts_array.append(text);
-                    }
-                    json_result["texts"] = texts_array;
-                    
-                    Json::Value boxes_array(Json::arrayValue);
-                    for (const auto& box : result.boxes) {
+                    Json::Value words_array(Json::arrayValue);
+                    for (const auto& word : result.words) {
+                        Json::Value word_map(Json::objectValue);
+                        word_map["text"] = word.text;
+                        word_map["confidence"] = word.confidence;
                         Json::Value box_array(Json::arrayValue);
-                        for (const auto& point : box) {
+                        for (const auto& point : word.box) {
                             Json::Value point_array(Json::arrayValue);
                             point_array.append(point[0]);
                             point_array.append(point[1]);
                             box_array.append(point_array);
                         }
-                        boxes_array.append(box_array);
+                        word_map["box"] = box_array;
+                        words_array.append(word_map);
                     }
-                    json_result["boxes"] = boxes_array;
+                    json_result["words"] = words_array;                    
                 } else {
                     json_result["error"] = result.error_message;
                 }
@@ -226,8 +224,7 @@ OCRResult OCRWorker::processRequest(const OCRRequest& request) {
         
         if (det_boxes.empty()) {
             result.success = true;
-            result.texts = {};
-            result.boxes = {};
+            result.words = {};
             auto end_time = std::chrono::high_resolution_clock::now();
             result.processing_time_ms = std::chrono::duration<double, std::milli>(end_time - start_time).count();
             return result;
@@ -253,8 +250,7 @@ OCRResult OCRWorker::processRequest(const OCRRequest& request) {
         
         if (text_images.empty()) {
             result.success = true;
-            result.texts = {};
-            result.boxes = {};
+            result.words = {};
             auto end_time = std::chrono::high_resolution_clock::now();
             result.processing_time_ms = std::chrono::duration<double, std::milli>(end_time - start_time).count();
             return result;
@@ -284,9 +280,15 @@ OCRResult OCRWorker::processRequest(const OCRRequest& request) {
         
         // 设置结果
         result.success = true;
-        result.texts = rec_texts;
-        result.boxes = det_boxes;
-        result.confidences = rec_scores;
+        for (size_t i = 0; i < rec_texts.size(); i++)
+        {
+            WordResult word;
+            word.text = rec_texts[i];
+            word.confidence = rec_scores[i];
+            word.box = det_boxes[i];
+            result.words.push_back(word);
+        }
+        
         
         auto end_time = std::chrono::high_resolution_clock::now();
         result.processing_time_ms = std::chrono::duration<double, std::milli>(end_time - start_time).count();

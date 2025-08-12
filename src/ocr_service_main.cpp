@@ -58,7 +58,8 @@ BOOL WINAPI ConsoleHandler(DWORD dwType) {
 }
 
 void printUsage() {
-    std::wcout << L"OCR IPC Service 1.0.1\n";
+    std::wcout << L"OCR IPC Service 1.0.2\n";
+    std::wcout << L"Repo: https://github.com/sssxyd/cpp-paddle-ocr\n";
     std::wcout << L"Usage: ocr_service [options]\n";
     std::wcout << L"\nOptions:\n";
     std::wcout << L"  --model-dir <path>    模型文件目录路径 (默认: ./models)\n";

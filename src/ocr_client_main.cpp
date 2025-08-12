@@ -37,7 +37,8 @@ void setupConsole() {
 #endif
 
 void printUsage() {
-    std::wcout << L"OCR IPC Client 1.0.1\n";
+    std::wcout << L"OCR IPC Client 1.0.2\n";
+    std::wcout << L"Repo: https://github.com/sssxyd/cpp-paddle-ocr\n";
     std::wcout << L"Usage: ocr_client [options] <image_path>\n";
     std::wcout << L"\nOptions:\n";
     std::wcout << L"  --pipe-name <name>    命名管道名称 (默认: \\\\.\\pipe\\ocr_service)\n";
@@ -46,10 +47,10 @@ void printUsage() {
     std::wcout << L"  --shutdown            优雅关闭OCR服务\n";
     std::wcout << L"  --help                显示此帮助信息\n";
     std::wcout << L"\n示例:\n";
-    std::wcout << L"  ocr_client image.jpg\n";
-    std::wcout << L"  ocr_client --status\n";
-    std::wcout << L"  ocr_client --shutdown\n";
-    std::wcout << L"  ocr_client --pipe-name \\\\.\\pipe\\ocr_service image.jpg\n";
+    std::wcout << L"  ocr-client image.jpg\n";
+    std::wcout << L"  ocr-client --status\n";
+    std::wcout << L"  ocr-client --shutdown\n";
+    std::wcout << L"  ocr-client --pipe-name \\\\.\\pipe\\ocr_service image.jpg\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -193,31 +194,37 @@ int main(int argc, char* argv[]) {
                     std::wcout << L"Total Time: " << duration.count() << L" ms" << std::endl;
                     std::wcout << L"Image Size: " << json_result["width"].asInt() << L"x" << json_result["height"].asInt() << std::endl;
                     
-                    const Json::Value& texts = json_result["texts"];
-                    if (texts.isArray() && !texts.empty()) {
-                        std::wcout << L"\nDetected Texts:" << std::endl;
-                        for (Json::ArrayIndex i = 0; i < texts.size(); ++i) {
-                            std::string text_utf8 = texts[i].asString();
+                    const Json::Value& wrods = json_result["words"];
+                    if (wrods.isArray() && !wrods.empty()) {
+                        std::wcout << L"Detected Words:" << std::endl;
+                        std::wcout << L"[" << std::endl;
+                        for (Json::ArrayIndex i = 0; i < wrods.size(); ++i) {
+                            const Json::Value& word = wrods[i];
+                            if (!word.isObject()) continue;
+                            const Json::Value& text = word["text"];
+                            if (!text.isString()) continue;
+                            const Json::Value& box = word["box"];
+                            if (!box.isArray()) continue;
+                            const Json::Value& confidence = word["confidence"];
+                            if (!confidence.isNumeric()) continue;
+                            std::wcout << L"  {" << std::endl;
+                            std::string text_utf8 = text.asString();
                             std::wstring text_wide = utf8ToWideString(text_utf8);
-                            std::wcout << L"  [" << i << L"] " << text_wide << std::endl;
-                        }
-                        
-                        const Json::Value& boxes = json_result["boxes"];
-                        if (boxes.isArray() && boxes.size() == texts.size()) {
-                            std::wcout << L"\nBounding Boxes:" << std::endl;
-                            for (Json::ArrayIndex i = 0; i < boxes.size(); ++i) {
-                                std::wcout << L"  [" << i << L"] ";
-                                const Json::Value& box = boxes[i];
-                                for (Json::ArrayIndex j = 0; j < box.size(); ++j) {
-                                    const Json::Value& point = box[j];
-                                    std::wcout << L"(" << point[0].asInt() << L"," << point[1].asInt() << L")";
-                                    if (j < box.size() - 1) std::wcout << L" ";
-                                }
-                                std::wcout << std::endl;
+                            std::wcout << L"    text: " << text_wide << std::endl;
+                            std::wcout << L"    confidence: " << confidence.asFloat() << std::endl;
+                            std::wcout << L"    box: [";
+                            for (Json::ArrayIndex j = 0; j < box.size(); ++j) {
+                                const Json::Value& point = box[j];
+                                if (!point.isArray() || point.size() != 2) continue;
+                                std::wcout << L"(" << point[0].asInt() << L"," << point[1].asInt() << L")";
+                                if (j < box.size() - 1) std::wcout << L", ";
                             }
+                            std::wcout << L"]" << std::endl;
+                            std::wcout << L"  }," << std::endl;        
                         }
+                        std::wcout << L"]" << std::endl;                        
                     } else {
-                        std::wcout << L"No text detected in the image." << std::endl;
+                        std::wcout << L"No Words Detected." << std::endl;
                     }
                 } else {
                     std::wstring error_msg = utf8ToWideString(json_result["error"].asString());
