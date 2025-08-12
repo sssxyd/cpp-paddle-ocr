@@ -1,4 +1,5 @@
-# rpa-windows-ocr
+# cpp-paddle-ocr
+实现办公电脑(无GPU或消费级GPU)快速运行百度OCR模型
 
 ## MSVC环境
 1. 安装 [Visual Studio Community 2022](https://visualstudio.microsoft.com/zh-hans/downloads/) && C++ && Windows SDK Kit
@@ -32,6 +33,6 @@
 3. 根据 [lib/msvc/README.md](./lib/msvc/README.md) 复制 lib
 4. 根据 [bin/msvc/README.md](./bin/msvc/README.md) 复制 dll
 
-## 编译图片
+## Icon图片
 1. rc文件编码，应当是：UTF-16 LE BOM
 2. ps1文件里，不要用中文，搞不定
