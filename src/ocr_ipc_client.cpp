@@ -69,8 +69,6 @@ static std::vector<unsigned char> readFileToBytes(const std::string& image_path)
         }
         
         file.close();
-        std::cout << "Successfully read " << file_size << " bytes from: " << image_path << std::endl;
-        
     } catch (const std::exception& e) {
         std::cerr << "Exception while reading file: " << e.what() << std::endl;
         buffer.clear();
@@ -162,13 +160,9 @@ std::string OCRIPCClient::recognizeImage(const std::string& image_path) {
             
             if (json_str.length() < 1000000) {  // 小于1MB
                 request["image_data"] = base64_data;
-                std::cout << "Using Base64 transmission (JSON size: " 
-                         << json_str.length() << " bytes)" << std::endl;
             } else {
                 // Base64数据太大，回退到路径传输
                 request["image_path"] = image_path;
-                std::cout << "Base64 too large (" << json_str.length() 
-                         << " bytes), using path transmission" << std::endl;
             }
         } else {
             // 如果无法读取图像，回退到路径传输
@@ -177,7 +171,6 @@ std::string OCRIPCClient::recognizeImage(const std::string& image_path) {
     } else {
         // 大文件或无法获取文件大小：使用路径传输
         request["image_path"] = image_path;
-        std::cout << "Using path transmission (file size: " << file_size << " bytes)" << std::endl;
     }
     
     Json::StreamWriterBuilder builder;
@@ -208,8 +201,6 @@ std::string OCRIPCClient::sendRequest(const std::string& request_json) {
         return Json::writeString(builder, error_response);
     }
     
-    std::cout << "Sent " << bytes_written << " bytes to server" << std::endl;
-    
     // 读取响应
     const int BUFFER_SIZE = 65536;
     char buffer[BUFFER_SIZE];
@@ -217,12 +208,10 @@ std::string OCRIPCClient::sendRequest(const std::string& request_json) {
     
     if (ReadFile(pipe_handle_, buffer, BUFFER_SIZE - 1, &bytes_read, NULL)) {
         buffer[bytes_read] = '\0';
-        std::cout << "Received " << bytes_read << " bytes from server" << std::endl;
         return std::string(buffer);
     } else {
         DWORD error = GetLastError();
-        std::cerr << "ReadFile failed with error: " << error << std::endl;
-        
+        std::cerr << "ReadFile failed with error: " << error << std::endl;        
         Json::Value error_response;
         error_response["success"] = false;
         error_response["error"] = "Failed to read response (error " + std::to_string(error) + ")";

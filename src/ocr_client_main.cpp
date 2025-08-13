@@ -131,18 +131,13 @@ int main(int argc, char* argv[]) {
         
         // 正常的OCR操作需要连接到服务
         PaddleOCR::OCRIPCClient client(pipe_name);
-          std::wcout << L"Connecting to OCR service..." << std::endl;
         if (!client.connect(timeout_ms)) {
             std::wcerr << L"Failed to connect to OCR service. Is the service running?" << std::endl;
             return 1;
         }
         
-        std::wcout << L"Connected successfully!" << std::endl;
-        
         if (get_status) {
             // 获取状态信息
-            std::wcout << L"获取服务状态信息..." << std::endl;
-            
             try {
                 std::string response = client.getServiceStatus();
                 
@@ -172,79 +167,17 @@ int main(int argc, char* argv[]) {
                 std::wcerr << L"获取状态时发生错误: " << error_msg << std::endl;
                 return 1;
             }
-        } else {            // 执行OCR识别
-            auto start_time = std::chrono::high_resolution_clock::now();
-            
-            std::wcout << L"Processing image: " << std::wstring(image_path.begin(), image_path.end()) << std::endl;
+        } else {          
+            // 执行OCR识别
             std::string result = client.recognizeImage(image_path);
-            
-            auto end_time = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration<double, std::milli>(end_time - start_time);
-            
-            // 解析结果
-            Json::Value json_result;
-            Json::CharReaderBuilder reader_builder;
-            std::istringstream stream(result);
-            std::string errors;
-              if (Json::parseFromStream(reader_builder, stream, &json_result, &errors)) {
-                if (json_result["success"].asBool()) {
-                    std::wcout << L"\n=== OCR Results ===" << std::endl;
-                    std::wcout << L"Processing Time: " << json_result["processing_time_ms"].asDouble() << L" ms" << std::endl;
-                    std::wcout << L"Worker ID: " << json_result["worker_id"].asInt() << std::endl;
-                    std::wcout << L"Total Time: " << duration.count() << L" ms" << std::endl;
-                    std::wcout << L"Image Size: " << json_result["width"].asInt() << L"x" << json_result["height"].asInt() << std::endl;
-                    
-                    const Json::Value& wrods = json_result["words"];
-                    if (wrods.isArray() && !wrods.empty()) {
-                        std::wcout << L"Detected Words:" << std::endl;
-                        std::wcout << L"[" << std::endl;
-                        for (Json::ArrayIndex i = 0; i < wrods.size(); ++i) {
-                            const Json::Value& word = wrods[i];
-                            if (!word.isObject()) continue;
-                            const Json::Value& text = word["text"];
-                            if (!text.isString()) continue;
-                            const Json::Value& box = word["box"];
-                            if (!box.isArray()) continue;
-                            const Json::Value& confidence = word["confidence"];
-                            if (!confidence.isNumeric()) continue;
-                            std::wcout << L"  {" << std::endl;
-                            std::string text_utf8 = text.asString();
-                            std::wstring text_wide = utf8ToWideString(text_utf8);
-                            std::wcout << L"    text: " << text_wide << std::endl;
-                            std::wcout << L"    confidence: " << confidence.asFloat() << std::endl;
-                            std::wcout << L"    box: [";
-                            for (Json::ArrayIndex j = 0; j < box.size(); ++j) {
-                                const Json::Value& point = box[j];
-                                if (!point.isArray() || point.size() != 2) continue;
-                                std::wcout << L"(" << point[0].asInt() << L"," << point[1].asInt() << L")";
-                                if (j < box.size() - 1) std::wcout << L", ";
-                            }
-                            std::wcout << L"]" << std::endl;
-                            std::wcout << L"  }," << std::endl;        
-                        }
-                        std::wcout << L"]" << std::endl;                        
-                    } else {
-                        std::wcout << L"No Words Detected." << std::endl;
-                    }
-                } else {
-                    std::wstring error_msg = utf8ToWideString(json_result["error"].asString());
-                    std::wcerr << L"OCR failed: " << error_msg << std::endl;
-                    return 1;
-                }
-            } else {
-                std::wstring error_wide = utf8ToWideString(errors);
-                std::wstring result_wide = utf8ToWideString(result);
-                std::wcerr << L"Failed to parse response: " << error_wide << std::endl;
-                std::wcerr << L"Raw response: " << result_wide << std::endl;
-                return 1;
-            }
+            std::wstring result_wide = utf8ToWideString(result);
+            std::wcout << result_wide << std::endl;
         }
-          client.disconnect();
-        std::wcout << L"\nDisconnected from service." << std::endl;
+        client.disconnect();
     }
     catch (const std::exception& e) {
         std::wstring error_msg = utf8ToWideString(e.what());
-        std::wcerr << L"Client error: " << error_msg << std::endl;
+        std::wcerr << error_msg << std::endl;
         return 1;
     }
     

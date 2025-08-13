@@ -182,6 +182,11 @@ void OCRWorker::workerLoop() {
                 }
                 
                 Json::StreamWriterBuilder builder;
+                builder["indentation"] = "";
+                builder["enableYAMLCompatibility"] = false;
+                builder["dropNullPlaceholders"] = false;
+                builder["useSpecialFloats"] = false;
+                builder["emitUTF8"] = true;
                 request->result_promise.set_value(Json::writeString(builder, json_result));
             }
             catch (const std::exception& e) {
@@ -192,6 +197,11 @@ void OCRWorker::workerLoop() {
                 error_result["worker_id"] = worker_id_;
                 
                 Json::StreamWriterBuilder builder;
+                builder["indentation"] = "";
+                builder["enableYAMLCompatibility"] = false;
+                builder["dropNullPlaceholders"] = false;
+                builder["useSpecialFloats"] = false;
+                builder["emitUTF8"] = true;
                 request->result_promise.set_value(Json::writeString(builder, error_result));
             }
             
