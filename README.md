@@ -16,7 +16,7 @@ paddleOCR在办公电脑(无显卡)上实现100ms级的卡片识别IPC服务
 
 ## IPC调用
 1. 启动OCR服务
-2. 其他程序通过IPC调用该服务
+2. 其他程序通过管道调用该服务
    ```go
    package main
 
