@@ -1,6 +1,102 @@
 # cpp-paddle-ocr
-实现办公电脑(无GPU或消费级GPU)快速运行百度OCR模型
+paddleOCR在办公电脑(无显卡)上实现100ms级的卡片识别IPC服务
 
+# Usage
+## 命令行
+1. 启动OCR服务
+   ```bash
+    .\ocr-service.exe --help
+    .\ocr-service.exe --cpu-workers 4
+   ```
+2. 识别图片
+   ```bash
+   .\ocr-client.exe --help
+   .\ocr-client.exe ..\images\card-jd.jpg
+   ```
+
+## IPC调用
+1. 启动OCR服务
+2. 其他程序通过IPC调用该服务
+   ```go
+   package main
+
+   import (
+      "encoding/json"
+      "fmt"
+      "syscall"
+
+      "golang.org/x/sys/windows"
+   )
+
+   type OcrRequest struct {
+      Command   string `json:"command"`    // OCR命令
+      ImageData string `json:"image_data"` // 图像数据，Base64编码
+      ImagePath string `json:"image_path"` // 图像文件路径
+   }
+
+   func main() {
+      // 使用默认的Named Pipe名称
+      pipeName, err := syscall.UTF16PtrFromString(`\\.\pipe\ocr_service`)
+      if err != nil {
+         panic(err)
+      }
+
+      // 打开Named Pipe
+      handle, err := windows.CreateFile(
+         pipeName,
+         windows.GENERIC_READ|windows.GENERIC_WRITE,
+         0,
+         nil,
+         windows.OPEN_EXISTING,
+         0,
+         0,
+      )
+      if err != nil {
+         fmt.Printf("打开Named Pipe失败: %v\n", err)
+      }
+
+      defer windows.CloseHandle(handle)
+
+      fmt.Println("成功打开Named Pipe:", pipeName)
+
+      // 构建请求, 这里改为你自己的图片地址
+      image_path := "E:\\1755074161639.jpg"
+      req := &OcrRequest{
+         Command:   "recognize",
+         ImagePath: image_path,
+      }
+
+      // 序列化请求
+      reqData, err := json.Marshal(req)
+      if err != nil {
+         fmt.Printf("序列化请求失败: %v\n", err)
+         return
+      }
+
+      // 发送请求
+      var bytesWritten uint32
+      err = windows.WriteFile(handle, reqData, &bytesWritten, nil)
+      if err != nil {
+         fmt.Printf("发送请求失败: %v\n", err)
+         return
+      }
+
+      // 读取响应
+      buffer := make([]byte, 64*1024) // 64K缓冲区
+      var bytesRead uint32
+      err = windows.ReadFile(handle, buffer, &bytesRead, nil)
+      if err != nil {
+         fmt.Printf("读取响应失败: %v\n", err)
+         return
+      }
+
+      fmt.Printf("接收到响应:\n %s\n", string(buffer[:bytesRead]))
+
+   }
+
+   ```
+
+# 环境配置
 ## MSVC环境
 1. 安装 [Visual Studio Community 2022](https://visualstudio.microsoft.com/zh-hans/downloads/) && C++ && Windows SDK Kit
 2. 安装 [NASM](https://www.nasm.us/)、[CMake](https://cmake.org/download/)
