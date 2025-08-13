@@ -195,25 +195,9 @@
         "cwd": "${workspaceFolder}"
       },
       "group": "build"
-    },      
+    },          
     {
       "label": "build-ocr-tests",
-      "type": "shell",
-      "command": "powershell",
-      "args": [
-        "-ExecutionPolicy",
-        "Bypass",        
-        "-File",
-        "${workspaceFolder}\\tests\\build_tests.bat"
-      ],      
-      "options": {
-        "cwd": "${workspaceFolder}\\tests"
-      },
-      "group": "build",
-      "problemMatcher": "$msCompile"
-    },      
-    {
-      "label": "build-ocr-tests-debug",
       "type": "shell",
       "command": "cl.exe",      "args": [
         "/std:c++20",
